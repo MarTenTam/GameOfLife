@@ -300,8 +300,6 @@ local slider = widget.newSlider(
 
 local pauseToggle = 0
 
---Create displaygroup for menu
-local menuGroup = display.newGroup()
 
 -- Function to handle button events
 local function handleStartButtonEvent( event )
@@ -331,7 +329,7 @@ local startButton = widget.newButton(
         height = W/8,
         cornerRadius = 2,
         fillColor = { default={0,0,0}, over={1,1,1} },
-        strokeColor = { default=aliveCellFillColor, over={1,1,1} },
+        strokeColor = { default=aliveCellFillColor, over={0,0,0} },
         strokeWidth = 1
     }
 )
@@ -341,7 +339,7 @@ local menuToggle = 0
 
 
  
--- Create the widget
+-- Create the menuButton
 local menuButton = widget.newButton(
     {
         label = "MENU",
@@ -354,12 +352,30 @@ local menuButton = widget.newButton(
         height = W/8,
         cornerRadius = 2,
         fillColor = { default={0,0,0}, over={1,1,1} },
-        strokeColor = { default=aliveCellFillColor, over={1,1,1} },
+        strokeColor = { default=aliveCellFillColor, over={0,0,0} },
         strokeWidth = 1
     }
 )
 
-
+-- Create the menuDummyButton
+local menuDummyButton = widget.newButton(
+    {
+        label = "MENU",
+        fontSize = 12,
+        labelColor = { default={1,1,1}, over=aliveCellFillColor },
+        emboss = false,
+        -- Properties for a rounded rectangle button
+        shape = "roundedRect",
+        width = W/3,
+        height = 5+W/8,
+        cornerRadius = 2,
+        left = W/4-W/6,
+        top = H-W/16-5,
+        fillColor = { default={0,0,0}, over={0,0,0} },
+        strokeColor = { default={1,1,1}, over=aliveCellFillColor },
+        strokeWidth = 1
+    }
+)
  
 -- Align the buttons
 startButton.x = W-(W/4)
@@ -367,23 +383,34 @@ startButton.y = H
 menuButton.x = W/4
 menuButton.y = H
 
-menuX = menuButton.x+W/6
 
-local backDrop = display.newRoundedRect( menuGroup, menuX, H-H*0.3-W/16, W*0.6, H*0.6, 2 )
+--Create displaygroup for menu
+local menuGroup = display.newGroup()
+
+menuGroup:insert(menuDummyButton)
+menuGroup.isVisible = false
+
+
+
+menuX = menuButton.x+W/7
+
+local backDrop = display.newRect( menuGroup, menuX, H-H*0.3-W/16-3, W*0.62, H*0.6 )
 backDrop.strokeWidth = 1
 backDrop:setFillColor( 0, 0, 0 )
-backDrop:setStrokeColor( unpack(aliveCellFillColor) )
+backDrop:setStrokeColor( 1, 1, 1 )
+
+-- Define the buttonHandler function
+local function buttonHandler(event)
+    if (event.phase == "ended") then
+            
+        menuGroup.isVisible = false
+        menuToggle = menuToggle + 1
+    end
+end
 
 local function Btn(functionName, label, x, y, w, h)
 
-    -- Define the buttonHandler function
-    local function buttonHandler(event)
-        if (event.phase == "ended") then
-            
-            menuGroup.isVisible = false
-            menuToggle = menuToggle + 1
-        end
-    end
+
 
     -- Create a button
     local btn = widget.newButton(
@@ -399,7 +426,7 @@ local function Btn(functionName, label, x, y, w, h)
             cornerRadius = 2,
             fillColor = { default={0,0,0}, over={1,1,1} },
             labelColor = { default=aliveCellFillColor, over={0,0,0} },
-            strokeColor = { default=aliveCellFillColor, over={1,1,1} },
+            strokeColor = { default=aliveCellFillColor, over={0,0,0} },
             strokeWidth = 1,
             x = x,
             y = y,
@@ -420,29 +447,26 @@ menuGroup:insert(saveStateBtn)
 menuGroup:insert(clearStateBtn)
 menuGroup:insert(loadStateBtn)
 menuGroup:insert(randomStateBtn)
-menuGroup.isVisible = false
 
 -- Function to handle button events
 local function handleMenuButtonEvent( event )
-    
     if ( "ended" == event.phase ) then
         
         if menuToggle % 2 == 0 then
             menuGroup.isVisible = true
-            menuButton:setFillColor(1,1,1)
+
         else
             menuGroup.isVisible = false
-            menuButton:setFillColor(0,0,0)
         end
         menuToggle = menuToggle + 1
-        print(menuGroup.isVisible==isVisible)
+
         
     end
 
 end
 
 menuButton:addEventListener("touch", handleMenuButtonEvent)
-
+menuDummyButton:addEventListener("touch", handleMenuButtonEvent)
 
 --Call the updateFillColor function at a specified interval using timer.performWithDelay()
 
