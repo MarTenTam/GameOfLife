@@ -5,6 +5,7 @@ local Y = display.contentCenterY -- Y coordinate of the center of the screen
 local W = display.contentWidth -- content width
 local H = display.contentHeight -- content height
 local matrixSize = 100
+local tempMatrix = {}
 
 local function randomMatrix(size)
 
@@ -43,11 +44,11 @@ local function updateCell(currentCellState, neighbourStateSum)
     end
 end
 
-local newMatrix = {}
+
 
 -- Function to calculate the states of all cells for the next frame. 
 -- It takes the binary matrix of cells as a table, calculates the new matrix and returns it.
-local function calculateCellStates(matrix)
+local function calculateCellStates(stateMatrix,tempMatrix)
 
     -- Create a metatable to be able to handle inputting values into empty tables without creating empty tables manually each time
     local metaTable = {
@@ -63,35 +64,35 @@ local function calculateCellStates(matrix)
             end
     }
 
-    newMatrix = setmetatable({}, metaTable)
+    tempMatrix = setmetatable({}, metaTable)
     local neighbourStateSum = 0
-    local lastRowIndex = #matrix
-    local lastColumnIndex = #matrix[1]
+    local lastRowIndex = #stateMatrix
+    local lastColumnIndex = #stateMatrix[1]
 
 -- Check the states of all the 8 surrounding cells, get the total of live cells and update cell state  
     -- Do upper left corner
-    neighbourStateSum = matrix[lastRowIndex][lastColumnIndex] + matrix[lastRowIndex][1] + matrix[lastRowIndex][2] + matrix[1][2] + matrix[2][2]
-    + matrix[2][1] + matrix[2][lastColumnIndex] + matrix[1][lastColumnIndex]
+    neighbourStateSum = stateMatrix[lastRowIndex][lastColumnIndex] + stateMatrix[lastRowIndex][1] + stateMatrix[lastRowIndex][2] + stateMatrix[1][2] + stateMatrix[2][2]
+    + stateMatrix[2][1] + stateMatrix[2][lastColumnIndex] + stateMatrix[1][lastColumnIndex]
     -- Save updated cell to new matrix
-    newMatrix[1][1] = updateCell(matrix[1][1], neighbourStateSum)
+    tempMatrix[1][1] = updateCell(stateMatrix[1][1], neighbourStateSum)
     -- Reset accumulator
     neighbourStateSum = 0
 
     -- Do upper right corner
-    neighbourStateSum = matrix[lastRowIndex][lastColumnIndex-1] + matrix[lastRowIndex][lastColumnIndex] + matrix[lastRowIndex][1] + matrix[1][1] + matrix[2][1]
-    + matrix[2][lastColumnIndex] + matrix[2][lastColumnIndex-1] + matrix[1][lastColumnIndex-1]
+    neighbourStateSum = stateMatrix[lastRowIndex][lastColumnIndex-1] + stateMatrix[lastRowIndex][lastColumnIndex] + stateMatrix[lastRowIndex][1] + stateMatrix[1][1] + stateMatrix[2][1]
+    + stateMatrix[2][lastColumnIndex] + stateMatrix[2][lastColumnIndex-1] + stateMatrix[1][lastColumnIndex-1]
     -- Save updated cell to new matrix
-    newMatrix[1][lastColumnIndex] = updateCell(matrix[1][lastColumnIndex], neighbourStateSum)
+    tempMatrix[1][lastColumnIndex] = updateCell(stateMatrix[1][lastColumnIndex], neighbourStateSum)
     -- Reset accumulator
     neighbourStateSum = 0
 
     -- Do upper edge middles 
     -- For each element+1 to length-1 in inner table at outer table 1
     for i=2, lastColumnIndex-1 do
-        neighbourStateSum = matrix[lastRowIndex][i-1] + matrix[lastRowIndex][i] + matrix[lastRowIndex][i+1] + matrix[1][i+1] + matrix[2][i+1]
-        + matrix[2][i] + matrix[2][i-1] + matrix[1][i-1]
+        neighbourStateSum = stateMatrix[lastRowIndex][i-1] + stateMatrix[lastRowIndex][i] + stateMatrix[lastRowIndex][i+1] + stateMatrix[1][i+1] + stateMatrix[2][i+1]
+        + stateMatrix[2][i] + stateMatrix[2][i-1] + stateMatrix[1][i-1]
          -- Save updated cell to new matrix
-        newMatrix[1][i] = updateCell(matrix[1][i], neighbourStateSum)
+        tempMatrix[1][i] = updateCell(stateMatrix[1][i], neighbourStateSum)
         -- Reset accumulator
         neighbourStateSum = 0
     end
@@ -100,64 +101,64 @@ local function calculateCellStates(matrix)
     -- For each row(outer table entry) from +1 to len-1, do
     for i=2, lastRowIndex-1 do
         --Do left edge middles
-        neighbourStateSum = matrix[i-1][lastColumnIndex] + matrix[i-1][1] + matrix[i-1][2] + matrix[i][2] + matrix[i+1][2]
-        + matrix[i+1][1] + matrix[i+1][lastColumnIndex] + matrix[i][lastColumnIndex]
+        neighbourStateSum = stateMatrix[i-1][lastColumnIndex] + stateMatrix[i-1][1] + stateMatrix[i-1][2] + stateMatrix[i][2] + stateMatrix[i+1][2]
+        + stateMatrix[i+1][1] + stateMatrix[i+1][lastColumnIndex] + stateMatrix[i][lastColumnIndex]
          -- Save updated cell to new matrix
-        newMatrix[i][1] = updateCell(matrix[i][1], neighbourStateSum)
+        tempMatrix[i][1] = updateCell(stateMatrix[i][1], neighbourStateSum)
         -- Reset accumulator
         neighbourStateSum = 0
 
         --Do middles without edge cases
         for j=2, lastColumnIndex-1 do
-            neighbourStateSum = matrix[i-1][j-1] + matrix[i-1][j] + matrix[i-1][j+1] + matrix[i][j+1] + matrix[i+1][j+1]
-            + matrix[i+1][j] + matrix[i+1][j-1] + matrix[i][j-1]
+            neighbourStateSum = stateMatrix[i-1][j-1] + stateMatrix[i-1][j] + stateMatrix[i-1][j+1] + stateMatrix[i][j+1] + stateMatrix[i+1][j+1]
+            + stateMatrix[i+1][j] + stateMatrix[i+1][j-1] + stateMatrix[i][j-1]
             -- Save updated cell to new matrix
-            newMatrix[i][j] = updateCell(matrix[i][j], neighbourStateSum)
+            tempMatrix[i][j] = updateCell(stateMatrix[i][j], neighbourStateSum)
             -- Reset accumulator
             neighbourStateSum = 0
         end
 
         --Do right edge middles
-        neighbourStateSum = matrix[i-1][lastColumnIndex-1] + matrix[i-1][lastColumnIndex] + matrix[i-1][1] + matrix[i][1] + matrix[i+1][1]
-        + matrix[i+1][lastColumnIndex] + matrix[i+1][lastColumnIndex-1] + matrix[i][lastColumnIndex-1]
+        neighbourStateSum = stateMatrix[i-1][lastColumnIndex-1] + stateMatrix[i-1][lastColumnIndex] + stateMatrix[i-1][1] + stateMatrix[i][1] + stateMatrix[i+1][1]
+        + stateMatrix[i+1][lastColumnIndex] + stateMatrix[i+1][lastColumnIndex-1] + stateMatrix[i][lastColumnIndex-1]
          -- Save updated cell to new matrix
-        newMatrix[i][lastColumnIndex] = updateCell(matrix[i][lastColumnIndex], neighbourStateSum)
+        tempMatrix[i][lastColumnIndex] = updateCell(stateMatrix[i][lastColumnIndex], neighbourStateSum)
         -- Reset accumulator
         neighbourStateSum = 0
 
     end
 
     -- Do lower left corner
-    neighbourStateSum = matrix[lastRowIndex-1][lastColumnIndex] + matrix[lastRowIndex-1][1] + matrix[lastRowIndex-1][2] + matrix[lastRowIndex][2] + matrix[1][2]
-    + matrix[1][1] + matrix[1][lastColumnIndex] + matrix[lastRowIndex][lastColumnIndex]
+    neighbourStateSum = stateMatrix[lastRowIndex-1][lastColumnIndex] + stateMatrix[lastRowIndex-1][1] + stateMatrix[lastRowIndex-1][2] + stateMatrix[lastRowIndex][2] + stateMatrix[1][2]
+    + stateMatrix[1][1] + stateMatrix[1][lastColumnIndex] + stateMatrix[lastRowIndex][lastColumnIndex]
     -- Save updated cell to new matrix
-    newMatrix[lastRowIndex][1] = updateCell(matrix[lastRowIndex][1], neighbourStateSum)
+    tempMatrix[lastRowIndex][1] = updateCell(stateMatrix[lastRowIndex][1], neighbourStateSum)
     -- Reset accumulator
     neighbourStateSum = 0
 
 
     -- Do lower right corner
-    neighbourStateSum = matrix[lastRowIndex-1][lastColumnIndex-1] + matrix[lastRowIndex-1][lastColumnIndex] + matrix[lastRowIndex-1][1] + matrix[lastRowIndex][1] + matrix[1][1]
-    + matrix[1][lastColumnIndex] + matrix[1][lastColumnIndex-1] + matrix[lastRowIndex][lastColumnIndex-1]
+    neighbourStateSum = stateMatrix[lastRowIndex-1][lastColumnIndex-1] + stateMatrix[lastRowIndex-1][lastColumnIndex] + stateMatrix[lastRowIndex-1][1] + stateMatrix[lastRowIndex][1] + stateMatrix[1][1]
+    + stateMatrix[1][lastColumnIndex] + stateMatrix[1][lastColumnIndex-1] + stateMatrix[lastRowIndex][lastColumnIndex-1]
     -- Save updated cell to new matrix
-    newMatrix[lastRowIndex][lastColumnIndex] = updateCell(matrix[lastRowIndex][lastColumnIndex], neighbourStateSum)
+    tempMatrix[lastRowIndex][lastColumnIndex] = updateCell(stateMatrix[lastRowIndex][lastColumnIndex], neighbourStateSum)
     -- Reset accumulator
     neighbourStateSum = 0
     
     -- Do lower edge middles
     -- For each element+1 to lastColumnIndex-1 in inner table at outer element at lastRowIndex:
     for i=2, lastColumnIndex-1 do
-        neighbourStateSum = matrix[lastRowIndex-1][i-1] + matrix[lastRowIndex-1][i] + matrix[lastRowIndex-1][i+1] + matrix[lastRowIndex][i+1] + matrix[1][i+1]
-        + matrix[1][i] + matrix[1][i-1] + matrix[lastRowIndex][i-1]
+        neighbourStateSum = stateMatrix[lastRowIndex-1][i-1] + stateMatrix[lastRowIndex-1][i] + stateMatrix[lastRowIndex-1][i+1] + stateMatrix[lastRowIndex][i+1] + stateMatrix[1][i+1]
+        + stateMatrix[1][i] + stateMatrix[1][i-1] + stateMatrix[lastRowIndex][i-1]
          -- Save updated cell to new matrix
-        newMatrix[lastRowIndex][i] = updateCell(matrix[lastRowIndex][i], neighbourStateSum)
+        tempMatrix[lastRowIndex][i] = updateCell(stateMatrix[lastRowIndex][i], neighbourStateSum)
         -- Reset accumulator
         neighbourStateSum = 0
     end
 
     -- Unset the metatable to avoid potential infinite loops when iterating over the table
-    setmetatable(newMatrix,nil)
-    return newMatrix
+    setmetatable(tempMatrix,nil)
+    return tempMatrix
 end
 
 
@@ -167,6 +168,8 @@ local aliveCellFillColor = {1, 0.5, 0} -- orange
 local deadCellFillColor = {0, 0, 0} -- black
 local doLife = true
 local lifeTimer
+
+local stateMatrix = randomMatrix(matrixSize)
 
 local function drawCells(matrix)
     local matrixSize = #matrix
@@ -191,7 +194,7 @@ local function drawCells(matrix)
             local row = event.target.row
             local col = event.target.col
 
-            newMatrix[row][col] = 11
+            stateMatrix[row][col] = 11
 
         end
     end
@@ -245,7 +248,7 @@ local function animate(matrix, cells)
     end
 end
 
-local stateMatrix = randomMatrix(matrixSize)
+
 
 
 
@@ -255,7 +258,7 @@ drawCells(stateMatrix)
 local function timeBasedAnimate(event)
      animate(stateMatrix, cells)
      if doLife then
-        stateMatrix = calculateCellStates(stateMatrix)
+        stateMatrix = calculateCellStates(stateMatrix, tempMatrix)
      end
 
 end
