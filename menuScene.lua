@@ -113,9 +113,9 @@ function scene:create( event )
     )
     menuDummyButton.functionName = false
 
-    saveStateBtn = Btn("saveState", "SAVE STATE", menuX, H/2, btnWidth, btnHeight)
+    saveStateBtn = Btn(false, "SAVE STATE", menuX, H/2, btnWidth, btnHeight)
     --print(saveStateBtn.functionName)
-    loadStateBtn = Btn("loadState", "LOAD STATE", menuX, H/2+btnHeight+btnPadding, btnWidth, btnHeight)
+    loadStateBtn = Btn(false, "LOAD STATE", menuX, H/2+btnHeight+btnPadding, btnWidth, btnHeight)
     clearStateBtn = Btn("clearState", "CLEAR STATE", menuX, H/2+2*(btnHeight+btnPadding), btnWidth, btnHeight)
     randomStateBtn = Btn("randomState", "NEW RANDOM STATE", menuX, H/2+3*(btnHeight+btnPadding), btnWidth, btnHeight)
     sceneGroup:insert(menuDummyButton)
