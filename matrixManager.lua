@@ -67,9 +67,9 @@ function matrixManager:randomState(size)
         matrix[row] = {}
         for col = 1, size do
             if math.random() < 0.5 then
-                matrix[row][col] = 10
+                matrix[row][col] = 0
             else
-                matrix[row][col] = 11
+                matrix[row][col] = 1
             end
         end
     end
@@ -85,7 +85,7 @@ function matrixManager:clearState(size)
     for row = 1, size do
         matrix[row] = {}
         for col = 1, size do
-                matrix[row][col] = 10
+                matrix[row][col] = 0
         end
     end
     return matrix
@@ -94,17 +94,17 @@ end
 --Function to update cells: takes the cell's current state and the sum of the states of its 8 neighbours and returns its updated state
 function matrixManager:updateCell(currentCellState, neighbourStateSum)
 
-    if currentCellState == 11 then
-        if (neighbourStateSum == 82 or neighbourStateSum == 83) then
-            return 11
+    if currentCellState == 1 then
+        if (neighbourStateSum == 2 or neighbourStateSum == 3) then
+            return 1
         else
-            return 10
+            return 0
         end
-    elseif currentCellState == 10 then
-        if neighbourStateSum == 83 then
-            return 11
+    elseif currentCellState == 0 then
+        if neighbourStateSum == 3 then
+            return 1
         else
-            return 10
+            return 0
         end
     end
 end

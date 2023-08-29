@@ -1,6 +1,7 @@
 local composer = require( "composer" )
 local widget = require("widget")
 
+
 local scene = composer.newScene()
 
 local aliveCellFillColor = {1, 0.5, 0} -- orange

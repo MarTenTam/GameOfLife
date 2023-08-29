@@ -7,6 +7,7 @@
 -----------------------------------------------------------------------------------------
 
 local composer = require( "composer" )
+local json = require("json")
 
 local scene = composer.newScene()
 
@@ -19,11 +20,44 @@ local scene = composer.newScene()
 local matrixManager = require( "matrixManager" )
 
 
+
+
+local function loadSettings()
+
+    local settings = {}
+
+    local path = system.pathForFile("settings.json", system.ResourceDirectory)
+
+    local file, errorString = io.open(path, "r")
+
+    if not file then
+
+        print( "File error: " .. errorString )
+    else
+        local contents = file:read("*a") 
+
+        settings = json.decode(contents)
+
+        io.close(file)
+
+        if not settings then
+            print("Failed to decode JSON data")
+        end
+        
+    end
+    
+    return settings
+end
+
+local settings = loadSettings()
+local matrixSize = settings.matrixSize
+
+
 local X = display.contentCenterX -- X coordinate of the center of the screen
 local Y = display.contentCenterY -- Y coordinate of the center of the screen
 local W = display.contentWidth -- content width
 local H = display.contentHeight -- content height
-local matrixSize = 200
+
 local tempMatrix = {}
 local stateMatrix
 local sliderTextOptions
@@ -68,7 +102,7 @@ local function animate(matrix, cells)
     for row = 1, size do
         for col = 1, size do
             local cell = cells[row][col]
-            if matrix[row][col] == 11 then
+            if matrix[row][col] == 1 then
                 cell:setFillColor(unpack(aliveCellFillColor))
             else
                 cell:setFillColor(unpack(deadCellFillColor))
@@ -176,7 +210,7 @@ function scene:create( event )
                 local row = event.target.row
                 local col = event.target.col
     
-                stateMatrix[row][col] = 11
+                stateMatrix[row][col] = 1
     
             end
         end
@@ -185,9 +219,7 @@ function scene:create( event )
         print("the length of matrix")
         print(matrixSize)
         for row = 1, matrixSize do
-            print("doing row:")
-            print(row)
-            
+                
             cells[row] = {}
             for col = 1, matrixSize do
                 local cellX = startX + (col - 1) * (cellSize + spacing)
@@ -199,7 +231,7 @@ function scene:create( event )
                 -- Store the row and column of the cell as properties of the rectangle object
                 cell.row = row
                 cell.col = col
-                if matrix[row][col] == 11 then
+                if matrix[row][col] == 1 then
                     cell:setFillColor(unpack(aliveCellFillColor))
                 else
                     cell:setFillColor(unpack(deadCellFillColor))
