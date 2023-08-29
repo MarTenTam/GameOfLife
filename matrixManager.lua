@@ -9,6 +9,7 @@ local json = require("json")
 
 local matrixManager = {}
 
+
 function matrixManager:saveState(stateMatrix)
 
     local stateMatrixString = json.encode(stateMatrix)
@@ -129,30 +130,29 @@ function matrixManager:calculateCellStates(stateMatrix,tempMatrix)
 
     tempMatrix = setmetatable({}, metaTable)
     local neighbourStateSum = 0
-    local lastRowIndex = #stateMatrix
-    local lastColumnIndex = #stateMatrix[1]
+    local lastIndex = #stateMatrix
 
 -- Check the states of all the 8 surrounding cells, get the total of live cells and update cell state  
     -- Do upper left corner
-    neighbourStateSum = stateMatrix[lastRowIndex][lastColumnIndex] + stateMatrix[lastRowIndex][1] + stateMatrix[lastRowIndex][2] + stateMatrix[1][2] + stateMatrix[2][2]
-    + stateMatrix[2][1] + stateMatrix[2][lastColumnIndex] + stateMatrix[1][lastColumnIndex]
+    neighbourStateSum = stateMatrix[lastIndex][lastIndex] + stateMatrix[lastIndex][1] + stateMatrix[lastIndex][2] + stateMatrix[1][2] + stateMatrix[2][2]
+    + stateMatrix[2][1] + stateMatrix[2][lastIndex] + stateMatrix[1][lastIndex]
     -- Save updated cell to new matrix
     tempMatrix[1][1] = matrixManager:updateCell(stateMatrix[1][1], neighbourStateSum)
     -- Reset accumulator
     neighbourStateSum = 0
 
     -- Do upper right corner
-    neighbourStateSum = stateMatrix[lastRowIndex][lastColumnIndex-1] + stateMatrix[lastRowIndex][lastColumnIndex] + stateMatrix[lastRowIndex][1] + stateMatrix[1][1] + stateMatrix[2][1]
-    + stateMatrix[2][lastColumnIndex] + stateMatrix[2][lastColumnIndex-1] + stateMatrix[1][lastColumnIndex-1]
+    neighbourStateSum = stateMatrix[lastIndex][lastIndex-1] + stateMatrix[lastIndex][lastIndex] + stateMatrix[lastIndex][1] + stateMatrix[1][1] + stateMatrix[2][1]
+    + stateMatrix[2][lastIndex] + stateMatrix[2][lastIndex-1] + stateMatrix[1][lastIndex-1]
     -- Save updated cell to new matrix
-    tempMatrix[1][lastColumnIndex] = matrixManager:updateCell(stateMatrix[1][lastColumnIndex], neighbourStateSum)
+    tempMatrix[1][lastIndex] = matrixManager:updateCell(stateMatrix[1][lastIndex], neighbourStateSum)
     -- Reset accumulator
     neighbourStateSum = 0
 
     -- Do upper edge middles 
     -- For each element+1 to length-1 in inner table at outer table 1
-    for i=2, lastColumnIndex-1 do
-        neighbourStateSum = stateMatrix[lastRowIndex][i-1] + stateMatrix[lastRowIndex][i] + stateMatrix[lastRowIndex][i+1] + stateMatrix[1][i+1] + stateMatrix[2][i+1]
+    for i=2, lastIndex-1 do
+        neighbourStateSum = stateMatrix[lastIndex][i-1] + stateMatrix[lastIndex][i] + stateMatrix[lastIndex][i+1] + stateMatrix[1][i+1] + stateMatrix[2][i+1]
         + stateMatrix[2][i] + stateMatrix[2][i-1] + stateMatrix[1][i-1]
          -- Save updated cell to new matrix
         tempMatrix[1][i] = matrixManager:updateCell(stateMatrix[1][i], neighbourStateSum)
@@ -162,17 +162,17 @@ function matrixManager:calculateCellStates(stateMatrix,tempMatrix)
     
     
     -- For each row(outer table entry) from +1 to len-1, do
-    for i=2, lastRowIndex-1 do
+    for i=2, lastIndex-1 do
         --Do left edge middles
-        neighbourStateSum = stateMatrix[i-1][lastColumnIndex] + stateMatrix[i-1][1] + stateMatrix[i-1][2] + stateMatrix[i][2] + stateMatrix[i+1][2]
-        + stateMatrix[i+1][1] + stateMatrix[i+1][lastColumnIndex] + stateMatrix[i][lastColumnIndex]
+        neighbourStateSum = stateMatrix[i-1][lastIndex] + stateMatrix[i-1][1] + stateMatrix[i-1][2] + stateMatrix[i][2] + stateMatrix[i+1][2]
+        + stateMatrix[i+1][1] + stateMatrix[i+1][lastIndex] + stateMatrix[i][lastIndex]
          -- Save updated cell to new matrix
         tempMatrix[i][1] = matrixManager:updateCell(stateMatrix[i][1], neighbourStateSum)
         -- Reset accumulator
         neighbourStateSum = 0
 
         --Do middles without edge cases
-        for j=2, lastColumnIndex-1 do
+        for j=2, lastIndex-1 do
             neighbourStateSum = stateMatrix[i-1][j-1] + stateMatrix[i-1][j] + stateMatrix[i-1][j+1] + stateMatrix[i][j+1] + stateMatrix[i+1][j+1]
             + stateMatrix[i+1][j] + stateMatrix[i+1][j-1] + stateMatrix[i][j-1]
             -- Save updated cell to new matrix
@@ -182,39 +182,39 @@ function matrixManager:calculateCellStates(stateMatrix,tempMatrix)
         end
 
         --Do right edge middles
-        neighbourStateSum = stateMatrix[i-1][lastColumnIndex-1] + stateMatrix[i-1][lastColumnIndex] + stateMatrix[i-1][1] + stateMatrix[i][1] + stateMatrix[i+1][1]
-        + stateMatrix[i+1][lastColumnIndex] + stateMatrix[i+1][lastColumnIndex-1] + stateMatrix[i][lastColumnIndex-1]
+        neighbourStateSum = stateMatrix[i-1][lastIndex-1] + stateMatrix[i-1][lastIndex] + stateMatrix[i-1][1] + stateMatrix[i][1] + stateMatrix[i+1][1]
+        + stateMatrix[i+1][lastIndex] + stateMatrix[i+1][lastIndex-1] + stateMatrix[i][lastIndex-1]
          -- Save updated cell to new matrix
-        tempMatrix[i][lastColumnIndex] = matrixManager:updateCell(stateMatrix[i][lastColumnIndex], neighbourStateSum)
+        tempMatrix[i][lastIndex] = matrixManager:updateCell(stateMatrix[i][lastIndex], neighbourStateSum)
         -- Reset accumulator
         neighbourStateSum = 0
 
     end
 
     -- Do lower left corner
-    neighbourStateSum = stateMatrix[lastRowIndex-1][lastColumnIndex] + stateMatrix[lastRowIndex-1][1] + stateMatrix[lastRowIndex-1][2] + stateMatrix[lastRowIndex][2] + stateMatrix[1][2]
-    + stateMatrix[1][1] + stateMatrix[1][lastColumnIndex] + stateMatrix[lastRowIndex][lastColumnIndex]
+    neighbourStateSum = stateMatrix[lastIndex-1][lastIndex] + stateMatrix[lastIndex-1][1] + stateMatrix[lastIndex-1][2] + stateMatrix[lastIndex][2] + stateMatrix[1][2]
+    + stateMatrix[1][1] + stateMatrix[1][lastIndex] + stateMatrix[lastIndex][lastIndex]
     -- Save updated cell to new matrix
-    tempMatrix[lastRowIndex][1] = matrixManager:updateCell(stateMatrix[lastRowIndex][1], neighbourStateSum)
+    tempMatrix[lastIndex][1] = matrixManager:updateCell(stateMatrix[lastIndex][1], neighbourStateSum)
     -- Reset accumulator
     neighbourStateSum = 0
 
 
     -- Do lower right corner
-    neighbourStateSum = stateMatrix[lastRowIndex-1][lastColumnIndex-1] + stateMatrix[lastRowIndex-1][lastColumnIndex] + stateMatrix[lastRowIndex-1][1] + stateMatrix[lastRowIndex][1] + stateMatrix[1][1]
-    + stateMatrix[1][lastColumnIndex] + stateMatrix[1][lastColumnIndex-1] + stateMatrix[lastRowIndex][lastColumnIndex-1]
+    neighbourStateSum = stateMatrix[lastIndex-1][lastIndex-1] + stateMatrix[lastIndex-1][lastIndex] + stateMatrix[lastIndex-1][1] + stateMatrix[lastIndex][1] + stateMatrix[1][1]
+    + stateMatrix[1][lastIndex] + stateMatrix[1][lastIndex-1] + stateMatrix[lastIndex][lastIndex-1]
     -- Save updated cell to new matrix
-    tempMatrix[lastRowIndex][lastColumnIndex] = matrixManager:updateCell(stateMatrix[lastRowIndex][lastColumnIndex], neighbourStateSum)
+    tempMatrix[lastIndex][lastIndex] = matrixManager:updateCell(stateMatrix[lastIndex][lastIndex], neighbourStateSum)
     -- Reset accumulator
     neighbourStateSum = 0
     
     -- Do lower edge middles
-    -- For each element+1 to lastColumnIndex-1 in inner table at outer element at lastRowIndex:
-    for i=2, lastColumnIndex-1 do
-        neighbourStateSum = stateMatrix[lastRowIndex-1][i-1] + stateMatrix[lastRowIndex-1][i] + stateMatrix[lastRowIndex-1][i+1] + stateMatrix[lastRowIndex][i+1] + stateMatrix[1][i+1]
-        + stateMatrix[1][i] + stateMatrix[1][i-1] + stateMatrix[lastRowIndex][i-1]
+    -- For each element+1 to lastIndex-1 in inner table at outer element at lastIndex:
+    for i=2, lastIndex-1 do
+        neighbourStateSum = stateMatrix[lastIndex-1][i-1] + stateMatrix[lastIndex-1][i] + stateMatrix[lastIndex-1][i+1] + stateMatrix[lastIndex][i+1] + stateMatrix[1][i+1]
+        + stateMatrix[1][i] + stateMatrix[1][i-1] + stateMatrix[lastIndex][i-1]
          -- Save updated cell to new matrix
-        tempMatrix[lastRowIndex][i] = matrixManager:updateCell(stateMatrix[lastRowIndex][i], neighbourStateSum)
+        tempMatrix[lastIndex][i] = matrixManager:updateCell(stateMatrix[lastIndex][i], neighbourStateSum)
         -- Reset accumulator
         neighbourStateSum = 0
     end

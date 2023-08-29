@@ -241,7 +241,8 @@ function scene:create( event )
         end    
     end
     
-    stateMatrix = matrixManager:randomState(matrixSize) 
+    stateMatrix = matrixManager:randomState(matrixSize)
+    matrixManager:saveState(stateMatrix) 
     
     drawCells(stateMatrix, cellBox)
        
