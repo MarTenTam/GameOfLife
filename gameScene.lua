@@ -23,7 +23,7 @@ local X = display.contentCenterX -- X coordinate of the center of the screen
 local Y = display.contentCenterY -- Y coordinate of the center of the screen
 local W = display.contentWidth -- content width
 local H = display.contentHeight -- content height
-local matrixSize = 5
+local matrixSize = 200
 local tempMatrix = {}
 local stateMatrix
 local sliderTextOptions
@@ -37,6 +37,12 @@ local menuBtnY = H-0.5*btnHeight - padding
 local sliderY = 1.4*padding
 local sliderW = W*0.8
 local sliderTextY = sliderY + 0.1*sliderW
+
+local cellBox = {
+    size = math.min((W - padding),(H - padding)),
+    x = X,
+    y = Y
+}
 
 local overlayOptions = {
     isModal = false,
@@ -150,20 +156,19 @@ function scene:create( event )
         print( "FPS at " .. frameRate )
     end
 
-    local function drawCells(matrix)
+    local function drawCells(matrix, cellBox)
         local matrixSize = #matrix
-        
-    
+     
         -- Calculate the size of each cell and the spacing between cells
-        local cellSize = math.min(
-            (display.contentWidth - padding * 2) / matrixSize,
-            (display.contentHeight - padding * 2) / matrixSize
-        )
-        local spacing = cellSize / 10
+        local cellSize =  cellBox.size/matrixSize *0.90
+        print("cell size will be:")
+        print(cellSize)
+        local spacing = cellSize/0.90*0.1
+        print("spacing is".. spacing)
     
         -- Calculate the starting position of the grid
-        local startX = X - (matrixSize / 2) * (cellSize + spacing) + padding
-        local startY = Y - (matrixSize / 2) * (cellSize + spacing) + padding
+        local startX = cellBox.x - cellBox.size/2 + 0.5*cellSize
+        local startY = cellBox.y - cellBox.size/2 + 0.5*cellSize
     
         -- Define the touchHandler function
         local function touchHandler(event)
@@ -177,7 +182,12 @@ function scene:create( event )
         end
        
         -- Create the grid of cells
+        print("the length of matrix")
+        print(matrixSize)
         for row = 1, matrixSize do
+            print("doing row:")
+            print(row)
+            
             cells[row] = {}
             for col = 1, matrixSize do
                 local cellX = startX + (col - 1) * (cellSize + spacing)
@@ -201,7 +211,7 @@ function scene:create( event )
     
     stateMatrix = matrixManager:randomState(matrixSize) 
     
-    drawCells(stateMatrix)
+    drawCells(stateMatrix, cellBox)
        
     sliderTextOptions = 
     {
