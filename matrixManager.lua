@@ -5,8 +5,57 @@
 -- Matrix manager for game of life
 --
 -----------------------------------------------------------------------------------------
+local json = require("json")
 
 local matrixManager = {}
+
+function matrixManager:saveState(stateMatrix)
+
+    local stateMatrixString = json.encode(stateMatrix)
+
+    local path = system.pathForFile("stateMatrix.json", system.ResourceDirectory)
+
+    local file, errorString = io.open( path , "w" )
+
+    if not file then
+        print( "File error: " .. errorString )
+    else
+        local contents = stateMatrixString
+        file:write(stateMatrixString)
+
+        file:close()
+        print("State file saved!")
+       
+    end
+end
+
+function matrixManager:loadState()
+
+    local stateMatrix= {}
+
+    local path = system.pathForFile("stateMatrix.json", system.ResourceDirectory)
+
+    local file, errorString = io.open(path, "r")
+
+    if not file then
+
+        print( "File error: " .. errorString )
+    else
+        local contents = file:read("*a") 
+
+        stateMatrix = json.decode(contents)
+
+        io.close(file)
+
+        if not stateMatrix then
+            print("Failed to decode JSON data")
+        end
+        
+    end
+    
+    return stateMatrix
+end
+
 
 function matrixManager:randomState(size)
 

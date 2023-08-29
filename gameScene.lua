@@ -23,13 +23,20 @@ local X = display.contentCenterX -- X coordinate of the center of the screen
 local Y = display.contentCenterY -- Y coordinate of the center of the screen
 local W = display.contentWidth -- content width
 local H = display.contentHeight -- content height
-local matrixSize = 100
+local matrixSize = 5
 local tempMatrix = {}
 local stateMatrix
-local sliderOptions
+local sliderTextOptions
 local sliderText
 local slider
 local pauseToggle = 0
+local btnHeight = W/8
+local btnWidth = W/3
+local padding = H*0.06
+local menuBtnY = H-0.5*btnHeight - padding
+local sliderY = 1.4*padding
+local sliderW = W*0.8
+local sliderTextY = sliderY + 0.1*sliderW
 
 local overlayOptions = {
     isModal = false,
@@ -45,7 +52,8 @@ local doLife = true
 local lifeTimer
 
 
-
+local startBtnGroup = display.newGroup()
+startBtnGroup.isVisible = false
 
 
 -- Define a function to update the fill color of the rectangles based on the binary matrix
@@ -75,10 +83,14 @@ end
 
 -- Return from menu
 function scene:resumeGame()
-    if composer.getVariable("functionName") then
-        stateMatrix = matrixManager[composer.getVariable("functionName")](matrixManager, matrixSize)
-        print(composer.getVariable("functionName"))
+    functionName = composer.getVariable("functionName")
+    if functionName then
+        if functionName == "saveState" then
+            matrixManager:saveState(stateMatrix)
+        else
+            stateMatrix = matrixManager[composer.getVariable("functionName")](matrixManager, matrixSize)
         end
+    end
 end
 
 -- -----------------------------------------------------------------------------------
@@ -94,17 +106,22 @@ local widget = require("widget")
 -- create()
 function scene:create( event )
 
-    local startButton
-    local menuButton
+    composer.setVariable("menuBtnY", menuBtnY)
+
+    local startBtn
+    local pauseBtn
+    local menuBtn
 
      -- Function to handle button events
-    local function handleStartButtonEvent( event )
+    local function handlePauseBtnEvent( event )
         
         if ( "ended" == event.phase ) then
             if pauseToggle % 2 == 0 then
                 doLife = false
+                startBtnGroup.isVisible = true
             else
                 doLife = true
+                startBtnGroup.isVisible = false
             end
             pauseToggle = pauseToggle + 1
         end
@@ -112,7 +129,7 @@ function scene:create( event )
     end
 
     -- Function to handle button events
-    local function handleMenuButtonEvent( event )
+    local function handlemenuBtnEvent( event )
         if ( "ended" == event.phase ) then
             composer.showOverlay( "menuScene", overlayOptions )
         end
@@ -127,7 +144,7 @@ function scene:create( event )
     -- Slider listener
     local function sliderListener( event )
         timer.cancel(lifeTimer)
-        frameRate = 30*(event.value/100)
+        frameRate = 29*(event.value/100) + 1
         sliderText.text = "Iteration speed at " .. frameRate .. " FPS"
         lifeTimer = timer.performWithDelay(1000/frameRate, timeBasedAnimate, -1)
         print( "FPS at " .. frameRate )
@@ -135,7 +152,6 @@ function scene:create( event )
 
     local function drawCells(matrix)
         local matrixSize = #matrix
-        local padding = 10 -- padding around the grid
         
     
         -- Calculate the size of each cell and the spacing between cells
@@ -146,8 +162,8 @@ function scene:create( event )
         local spacing = cellSize / 10
     
         -- Calculate the starting position of the grid
-        local startX = X - (matrixSize / 2) * (cellSize + spacing)
-        local startY = Y - (matrixSize / 2) * (cellSize + spacing)
+        local startX = X - (matrixSize / 2) * (cellSize + spacing) + padding
+        local startY = Y - (matrixSize / 2) * (cellSize + spacing) + padding
     
         -- Define the touchHandler function
         local function touchHandler(event)
@@ -187,18 +203,18 @@ function scene:create( event )
     
     drawCells(stateMatrix)
        
-    sliderOptions = 
+    sliderTextOptions = 
     {
         text = "Iteration speed at " .. frameRate .. " FPS",     
         x = X,
-        y = H/14,
+        y = sliderTextY,
         width = W,
         font = native.systemFont,   
         fontSize = 12,
         align = "center"  -- Alignment parameter
     }
      
-    sliderText = display.newText( sliderOptions )
+    sliderText = display.newText( sliderTextOptions )
     sliderText:setFillColor( unpack(aliveCellFillColor) )
     sceneGroup:insert(sliderText)
         
@@ -206,26 +222,26 @@ function scene:create( event )
     slider = widget.newSlider(
         {
             x = X,
-            y = 0,
-            width = W*0.9,
+            y = sliderY,
+            width = sliderW,
             value = 66.6,  -- Start slider at 66.6%
             listener = sliderListener
         }
     )
     sceneGroup:insert(slider)
          
-    -- Create the widget
-    startButton = widget.newButton(
+    -- Create the pauseButton
+    pauseBtn = widget.newButton(
         {
-            label = "START/PAUSE",
+            label = "PAUSE",
             fontSize = 12,
             labelColor = { default=aliveCellFillColor, over={0,0,0} },
-            onEvent = handleStartButtonEvent,
+            onEvent = handlePauseBtnEvent,
             emboss = false,
             -- Properties for a rounded rectangle button
             shape = "roundedRect",
-            width = W/3,
-            height = W/8,
+            width = btnWidth,
+            height = btnHeight,
             cornerRadius = 2,
             fillColor = { default={0,0,0}, over={1,1,1} },
             strokeColor = { default=aliveCellFillColor, over={0,0,0} },
@@ -233,14 +249,36 @@ function scene:create( event )
         }
     )
 
-    sceneGroup:insert(startButton)
+    sceneGroup:insert(pauseBtn)
     
-    
+    -- Create the startBtn
+    startBtn = widget.newButton(
+    {
+        label = "START",
+        onEvent = buttonHandler,
+        fontSize = 12,
+        labelColor = { default={1,1,1}, over=aliveCellFillColor },
+        onEvent = handlePauseBtnEvent,
+        emboss = false,
+        -- Properties for a rounded rectangle button
+        shape = "roundedRect",
+        width = btnWidth,
+        height = btnHeight,
+        cornerRadius = 2,
+        fillColor = { default={0,0,0}, over={0,0,0} },
+        strokeColor = { default={1,1,1}, over=aliveCellFillColor },
+        strokeWidth = 1
+        }
+    )
+
+    startBtnGroup:insert(startBtn)
+
+
     
     
      
-    -- Create the menuButton
-    menuButton = widget.newButton(
+    -- Create the menuBtn
+    menuBtn = widget.newButton(
         {
             label = "MENU",
             fontSize = 12,
@@ -248,8 +286,8 @@ function scene:create( event )
             emboss = false,
             -- Properties for a rounded rectangle button
             shape = "roundedRect",
-            width = W/3,
-            height = W/8,
+            width = btnWidth,
+            height = btnHeight,
             cornerRadius = 2,
             fillColor = { default={0,0,0}, over={1,1,1} },
             strokeColor = { default=aliveCellFillColor, over={0,0,0} },
@@ -257,17 +295,21 @@ function scene:create( event )
         }
     )
 
-    sceneGroup:insert(menuButton)
+    sceneGroup:insert(menuBtn)
      
     -- Align the buttons
-    startButton.x = W-(W/4)
-    startButton.y = H
-    menuButton.x = W/4
-    menuButton.y = H
+    pauseBtn.x = W-(W/4)
+    pauseBtn.y = menuBtnY
+    menuBtn.x = W/4
+    menuBtn.y = menuBtnY
+    startBtn.x = pauseBtn.x
+    startBtn.y = menuBtnY
     
     
 
-    menuButton:addEventListener("touch", handleMenuButtonEvent)
+    menuBtn:addEventListener("touch", handlemenuBtnEvent)
+
+    
     
     
     
