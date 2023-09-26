@@ -58,12 +58,10 @@ local Y = display.contentCenterY -- Y coordinate of the center of the screen
 local W = display.contentWidth -- content width
 local H = display.contentHeight -- content height
 
-local tempMatrix = {}
 local stateMatrix
 local sliderTextOptions
 local sliderText
 local slider
-local pauseToggle = 0
 local btnHeight = W/8
 local btnWidth = W/3
 local padding = H*0.06
@@ -89,11 +87,15 @@ local cells = {}
 local aliveCellFillColor = {1, 0.5, 0} -- orange
 local deadCellFillColor = {0, 0, 0} -- black
 local doLife = true 
+local doRandomWithSeed = false
 local lifeTimer
 
 
 local startBtnGroup = display.newGroup()
+local sliderGroup = display.newGroup()
+local seedingNotificationGroup = display.newGroup()
 startBtnGroup.isVisible = false
+seedingNotificationGroup.isVisible = false
 
 
 -- Define a function to update the fill color of the rectangles based on the binary matrix
@@ -115,7 +117,7 @@ end
 local function timeBasedAnimate(event)
     animate(stateMatrix, cells)
     if doLife then
-       stateMatrix = matrixManager:calculateCellStates(stateMatrix, tempMatrix)
+       stateMatrix = matrixManager:calculateCellStates(stateMatrix)
     end
 
 end
@@ -127,9 +129,23 @@ function scene:resumeGame()
     if functionName then
         if functionName == "saveState" then
             matrixManager:saveState(stateMatrix)
+        elseif functionName == "randomState" then
+            if doLife == true then
+                doLife = false
+                startBtnGroup.isVisible = true               
+            end
+            doRandomWithSeed = true
+            stateMatrix = matrixManager:clearState(matrixSize)
+            sliderGroup.isVisible = false
+            seedingNotificationGroup.isVisible = true
+
         else
-            stateMatrix = matrixManager[composer.getVariable("functionName")](matrixManager, matrixSize)
-        end
+            local loadedMatrix = matrixManager[composer.getVariable("functionName")](matrixManager, matrixSize)
+            if loadedMatrix then
+                stateMatrix = loadedMatrix
+            end
+        end 
+        
     end
 end
 
@@ -156,14 +172,19 @@ function scene:create( event )
     local function handlePauseBtnEvent( event )
         
         if ( "ended" == event.phase ) then
-            if pauseToggle % 2 == 0 then
+            if doLife == true then
                 doLife = false
                 startBtnGroup.isVisible = true
             else
+                if doRandomWithSeed == true then
+                    stateMatrix = matrixManager:randomState(matrixSize, stateMatrix)
+                    doRandomWithSeed = false
+                    sliderGroup.isVisible = true
+                    seedingNotificationGroup.isVisible = false
+                end
                 doLife = true
                 startBtnGroup.isVisible = false
             end
-            pauseToggle = pauseToggle + 1
         end
         return true
     end
@@ -195,10 +216,7 @@ function scene:create( event )
      
         -- Calculate the size of each cell and the spacing between cells
         local cellSize =  cellBox.size/matrixSize *0.90
-        print("cell size will be:")
-        print(cellSize)
         local spacing = cellSize/0.90*0.1
-        print("spacing is".. spacing)
     
         -- Calculate the starting position of the grid
         local startX = cellBox.x - cellBox.size/2 + 0.5*cellSize
@@ -216,8 +234,6 @@ function scene:create( event )
         end
        
         -- Create the grid of cells
-        print("the length of matrix")
-        print(matrixSize)
         for row = 1, matrixSize do
                 
             cells[row] = {}
@@ -242,7 +258,6 @@ function scene:create( event )
     end
     
     stateMatrix = matrixManager:randomState(matrixSize)
-    matrixManager:saveState(stateMatrix) 
     
     drawCells(stateMatrix, cellBox)
        
@@ -260,6 +275,23 @@ function scene:create( event )
     sliderText = display.newText( sliderTextOptions )
     sliderText:setFillColor( unpack(aliveCellFillColor) )
     sceneGroup:insert(sliderText)
+    sliderGroup:insert(sliderText)
+
+    seedingNotificationTextOptions = 
+    {
+        text = "Draw on the screen to seed the randomness. Then press START",     
+        x = X,
+        y = sliderTextY,
+        width = W,
+        font = native.systemFont,   
+        fontSize = 12,
+        align = "center"  -- Alignment parameter
+    }
+     
+    seedingNotificationText = display.newText( seedingNotificationTextOptions )
+    seedingNotificationText:setFillColor( unpack(aliveCellFillColor) )
+    sceneGroup:insert(seedingNotificationText)
+    seedingNotificationGroup:insert(seedingNotificationText)
         
     -- Create the widget
     slider = widget.newSlider(
@@ -272,6 +304,7 @@ function scene:create( event )
         }
     )
     sceneGroup:insert(slider)
+    sliderGroup:insert(slider)
          
     -- Create the pauseButton
     pauseBtn = widget.newButton(

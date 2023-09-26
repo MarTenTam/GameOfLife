@@ -30,36 +30,51 @@ function matrixManager:saveState(stateMatrix)
     end
 end
 
-function matrixManager:loadState()
+function matrixManager:loadState(size) --takes size to ensure no size mismatch
 
-    local stateMatrix= {}
-
-    local path = system.pathForFile("stateMatrix.json", system.ResourceDirectory)
+    local path = system.pathForFile("stateMatrix.json", system.ResourcesDirectory)
 
     local file, errorString = io.open(path, "r")
 
     if not file then
-
         print( "File error: " .. errorString )
-    else
-        local contents = file:read("*a") 
-
-        stateMatrix = json.decode(contents)
-
-        io.close(file)
-
-        if not stateMatrix then
-            print("Failed to decode JSON data")
-        end
-        
+        return
     end
-    
-    return stateMatrix
+
+    local contents = file:read("*a")
+
+    local decoded = json.decode(contents)
+
+    io.close(file)
+
+    if not decoded then
+        print("Failed to decode JSON data")
+        return
+    elseif #decoded ~= size then
+        print("Saved matrix is not the size currently running! Cannot load.")
+        return
+    end
+        
+    return decoded
 end
 
 
-function matrixManager:randomState(size)
+function matrixManager:randomState(size, seedMatrix)
 
+    
+    --Add up the seedMatrix to form an int as a seed for randomness if seedMatrix is passed
+    if seedMatrix then
+        local seed = 0
+        local seedMatrixSize = #seedMatrix
+
+        for row = 1, seedMatrixSize do
+            for col = 1, seedMatrixSize do
+                    seed = seed + seedMatrix[row][col]
+            end
+        end
+        print("The seed for randomness is: " .. seed)
+        math.randomseed(seed)
+    end
     --Create a random binary 2d matrix of cell states
 
     local matrix = {}
@@ -112,7 +127,7 @@ end
 
 -- Function to calculate the states of all cells for the next frame. 
 -- It takes the binary matrix of cells as a table, calculates the new matrix and returns it.
-function matrixManager:calculateCellStates(stateMatrix,tempMatrix)
+function matrixManager:calculateCellStates(stateMatrix)
 
     -- Create a metatable to be able to handle inputting values into empty tables without creating empty tables manually each time
     local metaTable = {
@@ -128,11 +143,11 @@ function matrixManager:calculateCellStates(stateMatrix,tempMatrix)
             end
     }
 
-    tempMatrix = setmetatable({}, metaTable)
+    local tempMatrix = setmetatable({}, metaTable)
     local neighbourStateSum = 0
     local lastIndex = #stateMatrix
 
--- Check the states of all the 8 surrounding cells, get the total of live cells and update cell state  
+ -- Check the states of all the 8 surrounding cells, get the total of live cells and update cell state  
     -- Do upper left corner
     neighbourStateSum = stateMatrix[lastIndex][lastIndex] + stateMatrix[lastIndex][1] + stateMatrix[lastIndex][2] + stateMatrix[1][2] + stateMatrix[2][2]
     + stateMatrix[2][1] + stateMatrix[2][lastIndex] + stateMatrix[1][lastIndex]
