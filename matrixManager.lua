@@ -28,34 +28,6 @@ function matrixManager:saveState(stateMatrix)
     end
 end
 
-function matrixManager:loadState(size) --takes size to ensure no size mismatch
-
-    local path = system.pathForFile("stateMatrix.json", system.ResourcesDirectory)
-
-    local file, errorString = io.open(path, "r")
-
-    if not file then
-        print( "File error: " .. errorString )
-        return
-    end
-
-    local contents = file:read("*a")
-
-    local decoded = json.decode(contents)
-
-    io.close(file)
-
-    if not decoded then
-        print("Failed to decode JSON data")
-        return
-    elseif #decoded ~= size then
-        print("Saved matrix is not the size currently running! Cannot load.")
-        return
-    end
-        
-    return decoded
-end
-
 function matrixManager:randomState(size, seedMatrix)
 
     

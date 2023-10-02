@@ -4,9 +4,6 @@ local widget = require("widget")
 
 local scene = composer.newScene()
 
-local aliveCellFillColor = {1, 0.5, 0} -- orange
-local deadCellFillColor = {0, 0, 0} -- black
-
 -- -----------------------------------------------------------------------------------
 -- Code outside of the scene event functions below will only be executed ONCE unless
 -- the scene is removed entirely (not recycled) via "composer.removeScene()"
@@ -17,11 +14,7 @@ local deadCellFillColor = {0, 0, 0} -- black
 -- Scene event functions
 -- -----------------------------------------------------------------------------------
 
-local X = display.contentCenterX -- X coordinate of the center of the screen
-local Y = display.contentCenterY -- Y coordinate of the center of the screen
-local W = display.contentWidth -- content width
-local H = display.contentHeight -- content height
-
+local settings = composer.getVariable("settings")
 
 local saveStateBtn
 local loadStateBtn
@@ -60,11 +53,11 @@ local function Btn(functionName, label, x, y, w, h)
             width = w,
             height = h,
             labelColor = { default={1,1,1} },
-            fontSize = 12,
+            fontSize = settings.fontSize,
             cornerRadius = 2,
             fillColor = { default={0,0,0}, over={1,1,1} },
-            labelColor = { default=aliveCellFillColor, over={0,0,0} },
-            strokeColor = { default=aliveCellFillColor, over={0,0,0} },
+            labelColor = { default=settings.primaryColor, over={0,0,0} },
+            strokeColor = { default=settings.primaryColor, over={0,0,0} },
             strokeWidth = 1,
             x = x,
             y = y
@@ -85,14 +78,13 @@ function scene:create( event )
     -- Assign "self.view" to local variable "sceneGroup" for easy reference
     local sceneGroup = self.view
 
-    backDropX = W/4+W/7
-    menuBtnY = composer.getVariable("menuBtnY")
+    backDropX = settings.W/4+settings.W/7
     btnPadding = 18
     
-    btnWidth = W*0.6-btnPadding
-    backDropY = menuBtnY-H*0.3-W/16-3
-    backDropW = W*0.62
-    backDropH = H*0.6
+    btnWidth = settings.W*0.6-btnPadding
+    backDropY = settings.btnY-settings.H*0.3-settings.W/16-3
+    backDropW = settings.W*0.62
+    backDropH = settings.H*0.6
     btnHeight = (backDropH - 7*btnPadding) / 4
     topBtnY = backDropY - backDropH/2 + btnHeight/2 + btnPadding*2
 
@@ -105,20 +97,20 @@ function scene:create( event )
     -- Create the menuDummyButton
     menuDummyButton = widget.newButton(
         {
-            label = "MENU",
+            label = settings.menuText,
             onEvent = buttonHandler,
-            fontSize = 12,
-            labelColor = { default={1,1,1}, over=aliveCellFillColor },
+            fontSize = settings.fontSize,
+            labelColor = { default={1,1,1}, over=settings.primaryColor },
             emboss = false,
             -- Properties for a rounded rectangle button
             shape = "roundedRect",
-            width = W/3,
-            height = 5+W/8,
+            width = settings.W/3,
+            height = 5+settings.W/8,
             cornerRadius = 2,
-            left = W/4-W/6,
-            top = menuBtnY-W/16-5,
+            left = settings.W/4-settings.W/6,
+            top = settings.btnY-settings.W/16-5,
             fillColor = { default={0,0,0}, over={0,0,0} },
-            strokeColor = { default={1,1,1}, over=aliveCellFillColor },
+            strokeColor = { default={1,1,1}, over=settings.primaryColor },
             strokeWidth = 1
         }
     )
@@ -126,11 +118,11 @@ function scene:create( event )
 
     
 
-    saveStateBtn = Btn("saveState", "SAVE STATE", backDropX, topBtnY, btnWidth, btnHeight)
+    saveStateBtn = Btn("saveState", settings.saveStateText, backDropX, topBtnY, btnWidth, btnHeight)
     --print(saveStateBtn.functionName)
-    loadStateBtn = Btn("loadState", "LOAD STATE", backDropX, topBtnY+btnHeight+btnPadding, btnWidth, btnHeight)
-    clearStateBtn = Btn("clearState", "CLEAR STATE", backDropX, topBtnY+2*(btnHeight+btnPadding), btnWidth, btnHeight)
-    randomStateBtn = Btn("randomState", "NEW RANDOM STATE", backDropX, topBtnY+3*(btnHeight+btnPadding), btnWidth, btnHeight)
+    loadStateBtn = Btn("loadState", settings.loadStateText, backDropX, topBtnY+btnHeight+btnPadding, btnWidth, btnHeight)
+    clearStateBtn = Btn("clearState", settings.clearStateText, backDropX, topBtnY+2*(btnHeight+btnPadding), btnWidth, btnHeight)
+    randomStateBtn = Btn("randomState", settings.randomStateText, backDropX, topBtnY+3*(btnHeight+btnPadding), btnWidth, btnHeight)
     sceneGroup:insert(menuDummyButton)
     sceneGroup:insert(backDrop)
     sceneGroup:insert(saveStateBtn)

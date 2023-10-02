@@ -4,124 +4,156 @@
 --
 -- This is the scene in which the game is played and all interaction takes place
 --
------------------------------------------------------------------------------------------
-
-local composer = require( "composer" )
-local json = require("json")
-
-local scene = composer.newScene()
-
--- -----------------------------------------------------------------------------------
 -- Code outside of the scene event functions below will only be executed ONCE unless
 -- the scene is removed entirely (not recycled) via "composer.removeScene()"
 -- -----------------------------------------------------------------------------------
 
--- Load matrix functions
-local matrixManager = require( "matrixManager" )
+local composer = require( "composer" )
+local json = require("json")
+local scene = composer.newScene()
+local matrixManager = require( "matrixManager" ) -- Load matrix functions
 
+-- Function to load in a table from a json file.
+--  Inputs: 
+--          - the filename in the ResourceDirectory
+--  Outputs: 
+--          - a table populated with the parsed json data
+--  Author: Marten Tammetalu
+local function loadJSONFile(fileName)
 
-
-
-local function loadSettings()
-
-    local settings = {}
-
-    local path = system.pathForFile("settings.json", system.ResourceDirectory)
-
+    -- Open, decode and alert if errors occur
+    local parsedTable = {}
+    local path = system.pathForFile(fileName, system.ResourceDirectory)
     local file, errorString = io.open(path, "r")
 
     if not file then
-
         print( "File error: " .. errorString )
+        native.showAlert( "File error", errorString, { "OK" } )                 
     else
         local contents = file:read("*a") 
-
-        settings = json.decode(contents)
-
+        parsedTable = json.decode(contents)
         io.close(file)
 
-        if not settings then
+        if not parsedTable then
             print("Failed to decode JSON data")
-        end
-        
-    end
-    
-    return settings
+            native.showAlert( "Error", "Failed to decode JSON data", { "OK" } )
+        end     
+    end   
+    return parsedTable
 end
 
-local settings = loadSettings()
+local stateMatrix -- the state matrix
+local iSpeed = 20 -- initial iteration speed fps
+
+-- Get settings
+local settings = loadJSONFile("settings.json")
 local matrixSize = settings.matrixSize
+local primaryColor = settings.primaryColor
+local secondaryColor = settings.secondaryColor
+local fontSize = settings.fontSize
 
+-- Set width, height, coordinates to settings for menuScene to use
+settings.X = display.contentCenterX
+settings.Y = display.contentCenterY
+settings.W = display.contentWidth
+settings.H = display.contentHeight
+-- Set padding
+local padding = settings.H*0.06
 
-local X = display.contentCenterX -- X coordinate of the center of the screen
-local Y = display.contentCenterY -- Y coordinate of the center of the screen
-local W = display.contentWidth -- content width
-local H = display.contentHeight -- content height
+-- Set position and size for buttons
+local btnHeight = settings.W/8
+local btnWidth = settings.W/3
+settings.btnY = settings.H-0.5*btnHeight - padding
 
-local stateMatrix
-local sliderTextOptions
-local sliderText
+-- Settings for slider elements
 local slider
-local btnHeight = W/8
-local btnWidth = W/3
-local padding = H*0.06
-local menuBtnY = H-0.5*btnHeight - padding
+local sliderText
 local sliderY = 1.4*padding
-local sliderW = W*0.8
+local sliderW = settings.W*0.8
 local sliderTextY = sliderY + 0.1*sliderW
+local sliderTextProperties =  {
+    text = settings.iterationSpeedText .. iSpeed .. settings.fpsText,     
+    x = settings.X,
+    y = sliderTextY,
+    width = settings.W,
+    font = native.systemFont,   
+    fontSize = fontSize,
+    align = "center"  
+}
 
+-- Settings for notification when seeding randomness
+local seedingNotificationText
+local seedingNotificationTextProperties = 
+{
+    text = settings.seedingText,     
+    x = settings.X,
+    y = sliderTextY,
+    width = settings.W,
+    font = native.systemFont,   
+    fontSize = fontSize,
+    align = "center"
+}
+
+-- A box of cells with its size, position and colors
 local cellBox = {
-    size = math.min((W - padding),(H - padding)),
-    x = X,
-    y = Y
+    size = math.min((settings.W - padding),(settings.H - padding)),
+    x = settings.X,
+    y = settings.Y,
+    cells = {},
+    aliveCellFillColor = settings.primaryColor,
+    deadCellFillColor = settings.secondaryColor
 }
 
-local overlayOptions = {
-    isModal = false,
-    --effect = "fade",
-    time = 400
-}
-
-local frameRate = 20 -- frames per second
-local cells = {}
-local aliveCellFillColor = {1, 0.5, 0} -- orange
-local deadCellFillColor = {0, 0, 0} -- black
-local doLife = true 
-local doRandomWithSeed = false
-local lifeTimer
+local pause = false -- start/stop toggle
+local lifeTimer -- timer for animation, used to cancel when adjusting iteration speed
 
 
+-- Groups that need to be individually hidden when needed
 local startBtnGroup = display.newGroup()
 local sliderGroup = display.newGroup()
 local seedingNotificationGroup = display.newGroup()
-startBtnGroup.isVisible = false
-seedingNotificationGroup.isVisible = false
+startBtnGroup.isVisible = false -- Only visible when paused
+seedingNotificationGroup.isVisible = false -- Only visible when seeding
 
 
--- Define a function to update the fill color of the rectangles based on the binary matrix
-local function animate(matrix, cells)
+-- Function to update the fill color of the rectangles based on the binary matrix.
+--  Inputs: 
+--          - the matrix of cell states
+--          - the cellBox with cells, box position, colors, size and padding
+--
+--  Outputs: 
+--          - updates the colors of the cells by manipulating the cells table in the cellBox table passed by reference
+--
+--  Author: Marten Tammetalu 
+local function animate(matrix, cellBox)
     local size = #matrix
     for row = 1, size do
         for col = 1, size do
-            local cell = cells[row][col]
-            if matrix[row][col] == 1 then
-                cell:setFillColor(unpack(aliveCellFillColor))
+            local cell = cellBox.cells[row][col]
+            if matrix[row][col] == 1 then -- if cell is alive, set it to alive color
+                cell:setFillColor(unpack(cellBox.aliveCellFillColor))
             else
-                cell:setFillColor(unpack(deadCellFillColor))
+                cell:setFillColor(unpack(cellBox.deadCellFillColor)) -- if cell is dead, set it to dead color
             end            
         end
     end
 end
 
-
+-- Function to update the fill color of the rectangles based on the binary matrix that is triggered based on time.
+--  Inputs: 
+--          - the triggering event
+--          - accesses stateMatrix and cellBox
+--
+--  Outputs: 
+--          - manipulates stateMatrix and cellBox
+--
+--  Author: Marten Tammetalu
 local function timeBasedAnimate(event)
-    animate(stateMatrix, cells)
-    if doLife then
+    animate(stateMatrix, cellBox)
+    if pause == false then
        stateMatrix = matrixManager:calculateCellStates(stateMatrix)
     end
-
 end
-
 
 -- Return from menu
 function scene:resumeGame()
@@ -129,16 +161,25 @@ function scene:resumeGame()
     if functionName then
         if functionName == "saveState" then
             matrixManager:saveState(stateMatrix)
+
         elseif functionName == "randomState" then
-            if doLife == true then
-                doLife = false
+            if pause == false then
+                pause = true
                 startBtnGroup.isVisible = true               
             end
-            doRandomWithSeed = true
+        
             stateMatrix = matrixManager:clearState(matrixSize)
             sliderGroup.isVisible = false
             seedingNotificationGroup.isVisible = true
-
+        
+        elseif functionName == "loadState" then 
+            local loadedMatrix = loadJSONFile("stateMatrix.json")
+                if #loadedMatrix == #stateMatrix then
+                    stateMatrix = loadedMatrix
+                else
+                    native.showAlert( "", settings.matrixSizeErrorText, { settings.okText } )
+                    print(settings.matrixSizeErrorText)
+                end
         else
             local loadedMatrix = matrixManager[composer.getVariable("functionName")](matrixManager, matrixSize)
             if loadedMatrix then
@@ -162,7 +203,7 @@ local widget = require("widget")
 -- create()
 function scene:create( event )
 
-    composer.setVariable("menuBtnY", menuBtnY)
+    composer.setVariable("settings", settings) --Settings for menuScene to access
 
     local startBtn
     local pauseBtn
@@ -172,17 +213,17 @@ function scene:create( event )
     local function handlePauseBtnEvent( event )
         
         if ( "ended" == event.phase ) then
-            if doLife == true then
-                doLife = false
+            if pause == false then
+                pause = true
                 startBtnGroup.isVisible = true
             else
-                if doRandomWithSeed == true then
+                if seedingNotificationGroup.isVisible == true then
                     stateMatrix = matrixManager:randomState(matrixSize, stateMatrix)
-                    doRandomWithSeed = false
+               
                     sliderGroup.isVisible = true
                     seedingNotificationGroup.isVisible = false
                 end
-                doLife = true
+                pause = false
                 startBtnGroup.isVisible = false
             end
         end
@@ -192,7 +233,7 @@ function scene:create( event )
     -- Function to handle button events
     local function handlemenuBtnEvent( event )
         if ( "ended" == event.phase ) then
-            composer.showOverlay( "menuScene", overlayOptions )
+            composer.showOverlay( "menuScene")
         end
         return true
     end
@@ -205,10 +246,10 @@ function scene:create( event )
     -- Slider listener
     local function sliderListener( event )
         timer.cancel(lifeTimer)
-        frameRate = 29*(event.value/100) + 1
-        sliderText.text = "Iteration speed at " .. frameRate .. " FPS"
-        lifeTimer = timer.performWithDelay(1000/frameRate, timeBasedAnimate, -1)
-        print( "FPS at " .. frameRate )
+        iSpeed = 29*(event.value/100) + 1
+        sliderText.text = settings.iterationSpeedText .. iSpeed .. settings.fpsText
+        lifeTimer = timer.performWithDelay(1000/iSpeed, timeBasedAnimate, -1)
+        print( "FPS at " .. iSpeed )
     end
 
     local function drawCells(matrix, cellBox)
@@ -236,21 +277,21 @@ function scene:create( event )
         -- Create the grid of cells
         for row = 1, matrixSize do
                 
-            cells[row] = {}
+            cellBox.cells[row] = {}
             for col = 1, matrixSize do
                 local cellX = startX + (col - 1) * (cellSize + spacing)
                 local cellY = startY + (row - 1) * (cellSize + spacing)
     
                 local cell = display.newRect(cellX, cellY, cellSize, cellSize)
                 sceneGroup:insert(cell)
-                cells[row][col] = cell
+                cellBox.cells[row][col] = cell
                 -- Store the row and column of the cell as properties of the rectangle object
                 cell.row = row
                 cell.col = col
                 if matrix[row][col] == 1 then
-                    cell:setFillColor(unpack(aliveCellFillColor))
+                    cell:setFillColor(unpack(primaryColor))
                 else
-                    cell:setFillColor(unpack(deadCellFillColor))
+                    cell:setFillColor(unpack(secondaryColor))
                 end  
                 cell:addEventListener("touch", touchHandler)
             end
@@ -260,46 +301,26 @@ function scene:create( event )
     stateMatrix = matrixManager:randomState(matrixSize)
     
     drawCells(stateMatrix, cellBox)
-       
-    sliderTextOptions = 
-    {
-        text = "Iteration speed at " .. frameRate .. " FPS",     
-        x = X,
-        y = sliderTextY,
-        width = W,
-        font = native.systemFont,   
-        fontSize = 12,
-        align = "center"  -- Alignment parameter
-    }
      
-    sliderText = display.newText( sliderTextOptions )
-    sliderText:setFillColor( unpack(aliveCellFillColor) )
+    sliderText = display.newText( sliderTextProperties )
+    sliderText:setFillColor( unpack(primaryColor) )
     sceneGroup:insert(sliderText)
     sliderGroup:insert(sliderText)
 
-    seedingNotificationTextOptions = 
-    {
-        text = "Draw on the screen to seed the randomness. Then press START",     
-        x = X,
-        y = sliderTextY,
-        width = W,
-        font = native.systemFont,   
-        fontSize = 12,
-        align = "center"  -- Alignment parameter
-    }
+  
      
-    seedingNotificationText = display.newText( seedingNotificationTextOptions )
-    seedingNotificationText:setFillColor( unpack(aliveCellFillColor) )
+    seedingNotificationText = display.newText( seedingNotificationTextProperties )
+    seedingNotificationText:setFillColor( unpack(primaryColor) )
     sceneGroup:insert(seedingNotificationText)
     seedingNotificationGroup:insert(seedingNotificationText)
         
     -- Create the widget
     slider = widget.newSlider(
         {
-            x = X,
+            x = settings.X,
             y = sliderY,
             width = sliderW,
-            value = 66.6,  -- Start slider at 66.6%
+            value = 100*iSpeed/30,  -- Start slider at 66.6%
             listener = sliderListener
         }
     )
@@ -309,9 +330,9 @@ function scene:create( event )
     -- Create the pauseButton
     pauseBtn = widget.newButton(
         {
-            label = "PAUSE",
-            fontSize = 12,
-            labelColor = { default=aliveCellFillColor, over={0,0,0} },
+            label = settings.pauseText,
+            fontSize = fontSize,
+            labelColor = { default=primaryColor, over={0,0,0} },
             onEvent = handlePauseBtnEvent,
             emboss = false,
             -- Properties for a rounded rectangle button
@@ -320,7 +341,7 @@ function scene:create( event )
             height = btnHeight,
             cornerRadius = 2,
             fillColor = { default={0,0,0}, over={1,1,1} },
-            strokeColor = { default=aliveCellFillColor, over={0,0,0} },
+            strokeColor = { default=primaryColor, over={0,0,0} },
             strokeWidth = 1
         }
     )
@@ -330,10 +351,10 @@ function scene:create( event )
     -- Create the startBtn
     startBtn = widget.newButton(
     {
-        label = "START",
+        label = settings.startText,
         onEvent = buttonHandler,
-        fontSize = 12,
-        labelColor = { default={1,1,1}, over=aliveCellFillColor },
+        fontSize = fontSize,
+        labelColor = { default={1,1,1}, over=primaryColor },
         onEvent = handlePauseBtnEvent,
         emboss = false,
         -- Properties for a rounded rectangle button
@@ -342,7 +363,7 @@ function scene:create( event )
         height = btnHeight,
         cornerRadius = 2,
         fillColor = { default={0,0,0}, over={0,0,0} },
-        strokeColor = { default={1,1,1}, over=aliveCellFillColor },
+        strokeColor = { default={1,1,1}, over=primaryColor },
         strokeWidth = 1
         }
     )
@@ -356,9 +377,9 @@ function scene:create( event )
     -- Create the menuBtn
     menuBtn = widget.newButton(
         {
-            label = "MENU",
-            fontSize = 12,
-            labelColor = { default=aliveCellFillColor, over={0,0,0} },
+            label = settings.menuText,
+            fontSize = fontSize,
+            labelColor = { default=primaryColor, over={0,0,0} },
             emboss = false,
             -- Properties for a rounded rectangle button
             shape = "roundedRect",
@@ -366,7 +387,7 @@ function scene:create( event )
             height = btnHeight,
             cornerRadius = 2,
             fillColor = { default={0,0,0}, over={1,1,1} },
-            strokeColor = { default=aliveCellFillColor, over={0,0,0} },
+            strokeColor = { default=primaryColor, over={0,0,0} },
             strokeWidth = 1
         }
     )
@@ -374,12 +395,12 @@ function scene:create( event )
     sceneGroup:insert(menuBtn)
      
     -- Align the buttons
-    pauseBtn.x = W-(W/4)
-    pauseBtn.y = menuBtnY
-    menuBtn.x = W/4
-    menuBtn.y = menuBtnY
+    pauseBtn.x = settings.W-(settings.W/4)
+    pauseBtn.y = settings.btnY
+    menuBtn.x = settings.W/4
+    menuBtn.y = settings.btnY
     startBtn.x = pauseBtn.x
-    startBtn.y = menuBtnY
+    startBtn.y = settings.btnY
     
     
 
@@ -393,7 +414,7 @@ function scene:create( event )
     
     --Call the updateFillColor function at a specified interval using timer.performWithDelay()
     
-    lifeTimer = timer.performWithDelay(1000/frameRate, timeBasedAnimate, -1)
+    lifeTimer = timer.performWithDelay(1000/iSpeed, timeBasedAnimate, -1)
     
 
  
