@@ -10,6 +10,7 @@
 
 local composer = require( "composer" )
 local json = require("json")
+local widget = require("widget")
 local scene = composer.newScene()
 local matrixManager = require( "matrixManager" ) -- Load matrix functions
 
@@ -47,10 +48,8 @@ local iSpeed = 20 -- initial iteration speed fps
 
 -- Get settings
 local settings = loadJSONFile("settings.json")
-local matrixSize = settings.matrixSize
-local primaryColor = settings.primaryColor
-local secondaryColor = settings.secondaryColor
-local fontSize = settings.fontSize
+-- Pass settings for menuScene to access
+composer.setVariable("settings", settings)
 
 -- Set width, height, coordinates to settings for menuScene to use
 settings.X = display.contentCenterX
@@ -65,6 +64,10 @@ local btnHeight = settings.W/8
 local btnWidth = settings.W/3
 settings.btnY = settings.H-0.5*btnHeight - padding
 
+local startBtn
+local pauseBtn
+local menuBtn
+
 -- Settings for slider elements
 local slider
 local sliderText
@@ -77,7 +80,7 @@ local sliderTextProperties =  {
     y = sliderTextY,
     width = settings.W,
     font = native.systemFont,   
-    fontSize = fontSize,
+    fontSize = settings.fontSize,
     align = "center"  
 }
 
@@ -90,7 +93,7 @@ local seedingNotificationTextProperties =
     y = sliderTextY,
     width = settings.W,
     font = native.systemFont,   
-    fontSize = fontSize,
+    fontSize = settings.fontSize,
     align = "center"
 }
 
@@ -100,21 +103,19 @@ local cellBox = {
     x = settings.X,
     y = settings.Y,
     cells = {},
+    spacing = settings.cellSpacing,
     aliveCellFillColor = settings.primaryColor,
     deadCellFillColor = settings.secondaryColor
 }
-
-local pause = false -- start/stop toggle
-local lifeTimer -- timer for animation, used to cancel when adjusting iteration speed
-
 
 -- Groups that need to be individually hidden when needed
 local startBtnGroup = display.newGroup()
 local sliderGroup = display.newGroup()
 local seedingNotificationGroup = display.newGroup()
-startBtnGroup.isVisible = false -- Only visible when paused
+startBtnGroup.isVisible = false -- Only visible when paused, also reflects paused state
 seedingNotificationGroup.isVisible = false -- Only visible when seeding
 
+local lifeTimer -- timer for animation, used to cancel when adjusting iteration speed
 
 -- Function to update the fill color of the rectangles based on the binary matrix.
 --  Inputs: 
@@ -150,29 +151,33 @@ end
 --  Author: Marten Tammetalu
 local function timeBasedAnimate(event)
     animate(stateMatrix, cellBox)
-    if pause == false then
+    if startBtnGroup.isVisible == false then
        stateMatrix = matrixManager:calculateCellStates(stateMatrix)
     end
 end
 
--- Return from menu
-function scene:resumeGame()
-    functionName = composer.getVariable("functionName")
-    if functionName then
-        if functionName == "saveState" then
+-- Function to trigger menu functions when returning to the game scene from the menu.
+--  Inputs: 
+--          - selectedFunction as a string
+--  Outputs: 
+--          - manipulates stateMatrix, cellBox, startBtnGroup.isVisible, sliderGroup.isVisible, seedingNotificationGroup.isVisible
+--
+--  Author: Marten Tammetalu
+function scene:returnFromMenu(selectedFunction)
+    -- Do only if a menu item was selected
+    if selectedFunction then
+        if selectedFunction == "saveState" then
             matrixManager:saveState(stateMatrix)
-
-        elseif functionName == "randomState" then
-            if pause == false then
-                pause = true
-                startBtnGroup.isVisible = true               
-            end
-        
-            stateMatrix = matrixManager:clearState(matrixSize)
+            return
+        elseif selectedFunction == "randomState" then
+            -- Pause the game, hide slider, inform the user what to do, and clear the matrix
+            startBtnGroup.isVisible = true                      
             sliderGroup.isVisible = false
             seedingNotificationGroup.isVisible = true
-        
-        elseif functionName == "loadState" then 
+            stateMatrix = matrixManager:makeZeroMatrix(settings.matrixSize)
+            return       
+        elseif selectedFunction == "loadState" then
+            -- Load new matrix, verify length matches, use as stateMatrix; If not matching, alert user to save new state
             local loadedMatrix = loadJSONFile("stateMatrix.json")
                 if #loadedMatrix == #stateMatrix then
                     stateMatrix = loadedMatrix
@@ -180,21 +185,76 @@ function scene:resumeGame()
                     native.showAlert( "", settings.matrixSizeErrorText, { settings.okText } )
                     print(settings.matrixSizeErrorText)
                 end
+                return
+        elseif selectedFunction == "clearState" then
+            stateMatrix = matrixManager:makeZeroMatrix(settings.matrixSize)
+            return
+        end
+    end
+    -- Handle cases where the user just closes the menu without selecting an item
+    if seedingNotificationGroup.isVisible == false then
+        startBtnGroup.isVisible = false
+        sliderGroup.isVisible = true
+        seedingNotificationGroup.isVisible = false
+    end   
+end
+
+-- Function to handle pause/start button events
+--  Inputs: 
+--          - Triggering event
+--  Outputs: 
+--          - manipulates stateMatrix, startBtnGroup.isVisible, sliderGroup.isVisible, seedingNotificationGroup.isVisible
+--
+--  Author: Marten Tammetalu
+local function handlePauseBtnEvent( event )
+    -- If not paused, pause    
+    if ( "ended" == event.phase ) then
+        if startBtnGroup.isVisible == false then
+            startBtnGroup.isVisible = true
         else
-            local loadedMatrix = matrixManager[composer.getVariable("functionName")](matrixManager, matrixSize)
-            if loadedMatrix then
-                stateMatrix = loadedMatrix
+            -- If paused and in seeding mode, then do new random matrix, bring back slider and hide seeding instructions
+            if seedingNotificationGroup.isVisible == true then
+                stateMatrix = matrixManager:makeRandomMatrix(settings.matrixSize, stateMatrix)       
+                sliderGroup.isVisible = true
+                seedingNotificationGroup.isVisible = false
             end
-        end 
-        
+            -- Resume
+            startBtnGroup.isVisible = false
+        end
     end
 end
 
--- -----------------------------------------------------------------------------------
--- User interface stuff
--- -----------------------------------------------------------------------------------
+-- Function to handle menu button events
+--  Inputs: 
+--          - Triggering event
+--  Outputs: 
+--          - manipulates startBtnGroup.isVisible
+--
+--  Author: Marten Tammetalu
+local function handleMenuBtnEvent( event )
+    if ( "ended" == event.phase ) then
+        composer.showOverlay( "menuScene")
+        startBtnGroup.isVisible = true
+    end
+end
 
-local widget = require("widget")
+-- Function to handle slider events
+--  Inputs: 
+--          - Triggering event
+--  Outputs: 
+--          - manipulates lifeTimer, iSpeed, sliderText.text
+--
+--  Author: Marten Tammetalu
+ local function handleSliderEvent( event )
+    -- Cancel current timer
+    timer.cancel(lifeTimer)
+    -- Adjust iteration speed in the range from 1-30
+    iSpeed = 29*(event.value/100) + 1
+    -- Inform user what is going on
+    sliderText.text = settings.iterationSpeedText .. iSpeed .. settings.fpsText
+    -- Animate again by assigning new lifetimer using updated iSpeed
+    lifeTimer = timer.performWithDelay(1000/iSpeed, timeBasedAnimate, -1)
+end
 
 -- -----------------------------------------------------------------------------------
 -- Scene event functions
@@ -203,84 +263,45 @@ local widget = require("widget")
 -- create()
 function scene:create( event )
 
-    composer.setVariable("settings", settings) --Settings for menuScene to access
-
-    local startBtn
-    local pauseBtn
-    local menuBtn
-
-     -- Function to handle button events
-    local function handlePauseBtnEvent( event )
-        
-        if ( "ended" == event.phase ) then
-            if pause == false then
-                pause = true
-                startBtnGroup.isVisible = true
-            else
-                if seedingNotificationGroup.isVisible == true then
-                    stateMatrix = matrixManager:randomState(matrixSize, stateMatrix)
-               
-                    sliderGroup.isVisible = true
-                    seedingNotificationGroup.isVisible = false
-                end
-                pause = false
-                startBtnGroup.isVisible = false
-            end
-        end
-        return true
-    end
-
-    -- Function to handle button events
-    local function handlemenuBtnEvent( event )
-        if ( "ended" == event.phase ) then
-            composer.showOverlay( "menuScene")
-        end
-        return true
-    end
-
-    -- Code here runs when the scene is first created but has not yet appeared on screen
-
     -- Assign "self.view" to local variable "sceneGroup" for easy reference
     local sceneGroup = self.view
 
-    -- Slider listener
-    local function sliderListener( event )
-        timer.cancel(lifeTimer)
-        iSpeed = 29*(event.value/100) + 1
-        sliderText.text = settings.iterationSpeedText .. iSpeed .. settings.fpsText
-        lifeTimer = timer.performWithDelay(1000/iSpeed, timeBasedAnimate, -1)
-        print( "FPS at " .. iSpeed )
-    end
-
+   
+    -- Function to draw the cells on screen, add them to the sceneGroup and handle touch events on them
+    --  Inputs: 
+    --          - the cellBox with cells, box position, colors, size and padding
+    --          - the matrix of cell states
+    --
+    --  Outputs: 
+    --          - operates on the cells table in the cellBox table passed by reference
+    --
+    --  Author: Marten Tammetalu
     local function drawCells(matrix, cellBox)
         local matrixSize = #matrix
      
-        -- Calculate the size of each cell and the spacing between cells
-        local cellSize =  cellBox.size/matrixSize *0.90
-        local spacing = cellSize/0.90*0.1
+        -- Calculate the size of each cell based on the spacing, cellBox size and cell amount
+        local cellSize = ((-matrixSize+1)*cellBox.spacing+cellBox.size)/matrixSize
     
         -- Calculate the starting position of the grid
         local startX = cellBox.x - cellBox.size/2 + 0.5*cellSize
         local startY = cellBox.y - cellBox.size/2 + 0.5*cellSize
     
-        -- Define the touchHandler function
+        -- Define the touchHandler function to allow live manipulation of cells
         local function touchHandler(event)
             if event.phase == "moved" then
                 local row = event.target.row
-                local col = event.target.col
-    
-                stateMatrix[row][col] = 1
-    
+                local col = event.target.col   
+                stateMatrix[row][col] = 1  
             end
         end
        
-        -- Create the grid of cells
+        -- Populate the cellbox with the grid of cells
         for row = 1, matrixSize do
                 
             cellBox.cells[row] = {}
             for col = 1, matrixSize do
-                local cellX = startX + (col - 1) * (cellSize + spacing)
-                local cellY = startY + (row - 1) * (cellSize + spacing)
+                local cellX = startX + (col - 1) * (cellSize + cellBox.spacing)
+                local cellY = startY + (row - 1) * (cellSize + cellBox.spacing)
     
                 local cell = display.newRect(cellX, cellY, cellSize, cellSize)
                 sceneGroup:insert(cell)
@@ -289,28 +310,25 @@ function scene:create( event )
                 cell.row = row
                 cell.col = col
                 if matrix[row][col] == 1 then
-                    cell:setFillColor(unpack(primaryColor))
+                    cell:setFillColor(unpack(cellBox.aliveCellFillColor))
                 else
-                    cell:setFillColor(unpack(secondaryColor))
-                end  
+                    cell:setFillColor(unpack(cellBox.deadCellFillColor))
+                end
+                -- Each cell should be able to be interacted with 
                 cell:addEventListener("touch", touchHandler)
             end
         end    
     end
-    
-    stateMatrix = matrixManager:randomState(matrixSize)
-    
-    drawCells(stateMatrix, cellBox)
      
     sliderText = display.newText( sliderTextProperties )
-    sliderText:setFillColor( unpack(primaryColor) )
+    sliderText:setFillColor( unpack(settings.primaryColor) )
     sceneGroup:insert(sliderText)
     sliderGroup:insert(sliderText)
 
   
      
     seedingNotificationText = display.newText( seedingNotificationTextProperties )
-    seedingNotificationText:setFillColor( unpack(primaryColor) )
+    seedingNotificationText:setFillColor( unpack(settings.primaryColor) )
     sceneGroup:insert(seedingNotificationText)
     seedingNotificationGroup:insert(seedingNotificationText)
         
@@ -321,7 +339,7 @@ function scene:create( event )
             y = sliderY,
             width = sliderW,
             value = 100*iSpeed/30,  -- Start slider at 66.6%
-            listener = sliderListener
+            listener = handleSliderEvent
         }
     )
     sceneGroup:insert(slider)
@@ -331,8 +349,8 @@ function scene:create( event )
     pauseBtn = widget.newButton(
         {
             label = settings.pauseText,
-            fontSize = fontSize,
-            labelColor = { default=primaryColor, over={0,0,0} },
+            fontSize = settings.fontSize,
+            labelColor = { default=settings.primaryColor, over={0,0,0} },
             onEvent = handlePauseBtnEvent,
             emboss = false,
             -- Properties for a rounded rectangle button
@@ -341,7 +359,7 @@ function scene:create( event )
             height = btnHeight,
             cornerRadius = 2,
             fillColor = { default={0,0,0}, over={1,1,1} },
-            strokeColor = { default=primaryColor, over={0,0,0} },
+            strokeColor = { default=settings.primaryColor, over={0,0,0} },
             strokeWidth = 1
         }
     )
@@ -353,8 +371,8 @@ function scene:create( event )
     {
         label = settings.startText,
         onEvent = buttonHandler,
-        fontSize = fontSize,
-        labelColor = { default={1,1,1}, over=primaryColor },
+        fontSize = settings.fontSize,
+        labelColor = { default={1,1,1}, over=settings.primaryColor },
         onEvent = handlePauseBtnEvent,
         emboss = false,
         -- Properties for a rounded rectangle button
@@ -363,7 +381,7 @@ function scene:create( event )
         height = btnHeight,
         cornerRadius = 2,
         fillColor = { default={0,0,0}, over={0,0,0} },
-        strokeColor = { default={1,1,1}, over=primaryColor },
+        strokeColor = { default={1,1,1}, over=settings.primaryColor },
         strokeWidth = 1
         }
     )
@@ -378,8 +396,8 @@ function scene:create( event )
     menuBtn = widget.newButton(
         {
             label = settings.menuText,
-            fontSize = fontSize,
-            labelColor = { default=primaryColor, over={0,0,0} },
+            fontSize = settings.fontSize,
+            labelColor = { default=settings.primaryColor, over={0,0,0} },
             emboss = false,
             -- Properties for a rounded rectangle button
             shape = "roundedRect",
@@ -387,7 +405,7 @@ function scene:create( event )
             height = btnHeight,
             cornerRadius = 2,
             fillColor = { default={0,0,0}, over={1,1,1} },
-            strokeColor = { default=primaryColor, over={0,0,0} },
+            strokeColor = { default=settings.primaryColor, over={0,0,0} },
             strokeWidth = 1
         }
     )
@@ -404,21 +422,19 @@ function scene:create( event )
     
     
 
-    menuBtn:addEventListener("touch", handlemenuBtnEvent)
+    menuBtn:addEventListener("touch", handleMenuBtnEvent)
 
-    
-    
-    
-    
-    
-    
-    --Call the updateFillColor function at a specified interval using timer.performWithDelay()
-    
+    -- Check if matrix size has changed, load the matrix, draw the grid
+    local loadedMatrix = loadJSONFile("stateMatrix.json")
+    if settings.matrixSize == #loadedMatrix then
+        stateMatrix = loadedMatrix
+    else 
+        stateMatrix = matrixManager:makeRandomMatrix(settings.matrixSize)
+    end
+    drawCells(stateMatrix, cellBox)
+
+    --Call the updateFillColor function at a specified interval using timer.performWithDelay()  
     lifeTimer = timer.performWithDelay(1000/iSpeed, timeBasedAnimate, -1)
-    
-
- 
-  
 end
 
 

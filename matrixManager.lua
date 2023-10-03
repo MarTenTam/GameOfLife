@@ -28,7 +28,7 @@ function matrixManager:saveState(stateMatrix)
     end
 end
 
-function matrixManager:randomState(size, seedMatrix)
+function matrixManager:makeRandomMatrix(size, seedMatrix)
 
     
     --Add up the seedMatrix to form an int as a seed for randomness if seedMatrix is passed
@@ -61,7 +61,7 @@ function matrixManager:randomState(size, seedMatrix)
     return matrix
 end
 
-function matrixManager:clearState(size)
+function matrixManager:makeZeroMatrix(size)
 
     --Create a binary 2d matrix of dead cells
 

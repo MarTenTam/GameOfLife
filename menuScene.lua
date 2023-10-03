@@ -31,18 +31,19 @@ local backDropY
 local backDropW
 local backDropH
 local topBtnY
+local selectedFunction
 
 -- Define the buttonHandler function
 local function buttonHandler(event)
     if (event.phase == "ended") then
-        if event.target.functionName then
-            composer.setVariable("functionName", event.target.functionName)
+        if event.target.selectedFunction then
+            selectedFunction = event.target.selectedFunction
         end
         composer.hideOverlay( "menuScene" )
     end
 end
 
-local function Btn(functionName, label, x, y, w, h)
+local function Btn(selectedFunction, label, x, y, w, h)
     -- Create a button
     local btn = widget.newButton(
         {
@@ -64,7 +65,7 @@ local function Btn(functionName, label, x, y, w, h)
         }
     )
 
-    btn.functionName = functionName
+    btn.selectedFunction = selectedFunction
 
     return btn
 end
@@ -73,7 +74,7 @@ end
 -- create()
 function scene:create( event )
 
-    composer.setVariable("functionName", false)
+    selectedFunction = false
 
     -- Assign "self.view" to local variable "sceneGroup" for easy reference
     local sceneGroup = self.view
@@ -114,12 +115,12 @@ function scene:create( event )
             strokeWidth = 1
         }
     )
-    menuDummyButton.functionName = false
+    menuDummyButton.selectedFunction = false
 
     
 
     saveStateBtn = Btn("saveState", settings.saveStateText, backDropX, topBtnY, btnWidth, btnHeight)
-    --print(saveStateBtn.functionName)
+    --print(saveStateBtn.selectedFunction)
     loadStateBtn = Btn("loadState", settings.loadStateText, backDropX, topBtnY+btnHeight+btnPadding, btnWidth, btnHeight)
     clearStateBtn = Btn("clearState", settings.clearStateText, backDropX, topBtnY+2*(btnHeight+btnPadding), btnWidth, btnHeight)
     randomStateBtn = Btn("randomState", settings.randomStateText, backDropX, topBtnY+3*(btnHeight+btnPadding), btnWidth, btnHeight)
@@ -144,7 +145,7 @@ end
 -- show()
 function scene:show( event )
 
-    --composer.setVariable("functionName", false)
+    --composer.setVariable("selectedFunction", false)
 
     local sceneGroup = self.view
     local phase = event.phase
@@ -167,7 +168,7 @@ function scene:hide( event )
  
     if ( phase == "will" ) then
 
-        parent:resumeGame()
+        parent:returnFromMenu(selectedFunction)
 
     end
 end
