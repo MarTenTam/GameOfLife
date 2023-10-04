@@ -1,3 +1,7 @@
+require("lunatest") -- import the test framework
+require("modules.myFunctions") -- import the code to test
+require("tests.myTests") -- import the tests and run them
+
 -----------------------------------------------------------------------------------------
 --
 -- gameScene.lua
@@ -67,6 +71,7 @@ settings.btnX = settings.W/4
 local startBtn
 local pauseBtn
 local menuBtn
+local pausedWhenMenuOpened = false -- Boolean to avoid resuming when returning from menu if already paused.
 
 -- Settings for slider elements
 local slider
@@ -194,11 +199,13 @@ function scene:returnFromMenu(selectedFunction)
         end
     end
     -- Handle cases where the user just closes the menu without selecting an item
-    if seedingNotificationGroup.isVisible == false then
+    if seedingNotificationGroup.isVisible == false and pausedWhenMenuOpened == false then
         startBtnGroup.isVisible = false
         sliderGroup.isVisible = true
         seedingNotificationGroup.isVisible = false
-    end   
+    else
+        pausedWhenMenuOpened = false
+    end
 end
 
 -- Function to handle pause/start button events
@@ -236,7 +243,12 @@ end
 local function handleMenuBtnEvent( event )
     if ( "ended" == event.phase ) then
         composer.showOverlay( "menuScene")
-        startBtnGroup.isVisible = true
+        -- If already paused when menu opened, remember it, to avoid resuming upon returning from menu.
+        if startBtnGroup.isVisible == true then
+            pausedWhenMenuOpened = true
+        else 
+            startBtnGroup.isVisible = true
+        end
     end
 end
 
