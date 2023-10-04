@@ -4,8 +4,7 @@
 --
 -- This is the scene in which the game is played and all interaction takes place
 --
--- Code outside of the scene event functions below will only be executed ONCE unless
--- the scene is removed entirely (not recycled) via "composer.removeScene()"
+-- This scene always runs
 -- -----------------------------------------------------------------------------------
 
 local composer = require( "composer" )
@@ -63,6 +62,7 @@ local padding = settings.H*0.06
 local btnHeight = settings.W/8
 local btnWidth = settings.W/3
 settings.btnY = settings.H-0.5*btnHeight - padding
+settings.btnX = settings.W/4
 
 local startBtn
 local pauseBtn
@@ -81,7 +81,8 @@ local sliderTextProperties =  {
     width = settings.W,
     font = native.systemFont,   
     fontSize = settings.fontSize,
-    align = "center"  
+    align = "center",
+    fillColor = settings.primaryColor
 }
 
 -- Settings for notification when seeding randomness
@@ -94,7 +95,8 @@ local seedingNotificationTextProperties =
     width = settings.W,
     font = native.systemFont,   
     fontSize = settings.fontSize,
-    align = "center"
+    align = "center",
+    fillColor = settings.primaryColor
 }
 
 -- A box of cells with its size, position and colors
@@ -256,17 +258,12 @@ end
     lifeTimer = timer.performWithDelay(1000/iSpeed, timeBasedAnimate, -1)
 end
 
--- -----------------------------------------------------------------------------------
--- Scene event functions
--- -----------------------------------------------------------------------------------
-
 -- create()
 function scene:create( event )
 
     -- Assign "self.view" to local variable "sceneGroup" for easy reference
     local sceneGroup = self.view
 
-   
     -- Function to draw the cells on screen, add them to the sceneGroup and handle touch events on them
     --  Inputs: 
     --          - the cellBox with cells, box position, colors, size and padding
@@ -319,20 +316,11 @@ function scene:create( event )
             end
         end    
     end
-     
-    sliderText = display.newText( sliderTextProperties )
-    sliderText:setFillColor( unpack(settings.primaryColor) )
-    sceneGroup:insert(sliderText)
-    sliderGroup:insert(sliderText)
+    
 
-  
-     
-    seedingNotificationText = display.newText( seedingNotificationTextProperties )
-    seedingNotificationText:setFillColor( unpack(settings.primaryColor) )
-    sceneGroup:insert(seedingNotificationText)
-    seedingNotificationGroup:insert(seedingNotificationText)
-        
-    -- Create the widget
+    --Create the slider and its text, set their color and add to the scene group and their own groups to control individual visibility
+    sliderText = display.newText( sliderTextProperties )
+    sliderText:setFillColor( unpack(sliderTextProperties.fillColor) )
     slider = widget.newSlider(
         {
             x = settings.X,
@@ -343,14 +331,22 @@ function scene:create( event )
         }
     )
     sceneGroup:insert(slider)
+    sceneGroup:insert(sliderText)
     sliderGroup:insert(slider)
-         
-    -- Create the pauseButton
+    sliderGroup:insert(sliderText)
+  
+    --Create the seeding notification, set its color, insert to scene and individual display group
+    seedingNotificationText = display.newText( seedingNotificationTextProperties )
+    seedingNotificationText:setFillColor( unpack(seedingNotificationTextProperties.fillColor) )
+    sceneGroup:insert(seedingNotificationText)
+    seedingNotificationGroup:insert(seedingNotificationText)
+             
+    -- Create the pause button and insert to scene group
     pauseBtn = widget.newButton(
         {
             label = settings.pauseText,
             fontSize = settings.fontSize,
-            labelColor = { default=settings.primaryColor, over={0,0,0} },
+            labelColor = { default=settings.primaryColor, over=settings.secondaryColor },
             onEvent = handlePauseBtnEvent,
             emboss = false,
             -- Properties for a rounded rectangle button
@@ -358,21 +354,20 @@ function scene:create( event )
             width = btnWidth,
             height = btnHeight,
             cornerRadius = 2,
-            fillColor = { default={0,0,0}, over={1,1,1} },
-            strokeColor = { default=settings.primaryColor, over={0,0,0} },
+            fillColor = { default=settings.secondaryColor, over=settings.buttonPressedColor },
+            strokeColor = { default=settings.primaryColor, over=settings.secondaryColor },
             strokeWidth = 1
         }
     )
-
     sceneGroup:insert(pauseBtn)
     
-    -- Create the startBtn
+    -- Create the start button and insert to scene group and individual group (this is to replace the pause button while paused)
     startBtn = widget.newButton(
     {
         label = settings.startText,
         onEvent = buttonHandler,
         fontSize = settings.fontSize,
-        labelColor = { default={1,1,1}, over=settings.primaryColor },
+        labelColor = { default=settings.buttonPressedColor, over=settings.secondaryColor },
         onEvent = handlePauseBtnEvent,
         emboss = false,
         -- Properties for a rounded rectangle button
@@ -380,49 +375,42 @@ function scene:create( event )
         width = btnWidth,
         height = btnHeight,
         cornerRadius = 2,
-        fillColor = { default={0,0,0}, over={0,0,0} },
-        strokeColor = { default={1,1,1}, over=settings.primaryColor },
+        fillColor = { default=settings.secondaryColor, over=settings.buttonPressedColor },
+        strokeColor = { default=settings.buttonPressedColor, over=settings.secondaryColor },
         strokeWidth = 1
         }
     )
 
+    sceneGroup:insert(startBtn)
     startBtnGroup:insert(startBtn)
 
-
-    
-    
-     
     -- Create the menuBtn
     menuBtn = widget.newButton(
         {
             label = settings.menuText,
             fontSize = settings.fontSize,
-            labelColor = { default=settings.primaryColor, over={0,0,0} },
+            labelColor = { default=settings.primaryColor, over=settings.secondaryColor },
+            onEvent = handleMenuBtnEvent,
             emboss = false,
             -- Properties for a rounded rectangle button
             shape = "roundedRect",
             width = btnWidth,
             height = btnHeight,
             cornerRadius = 2,
-            fillColor = { default={0,0,0}, over={1,1,1} },
-            strokeColor = { default=settings.primaryColor, over={0,0,0} },
+            fillColor = { default=settings.secondaryColor, over=settings.buttonPressedColor },
+            strokeColor = { default=settings.primaryColor, over=settings.secondaryColor },
             strokeWidth = 1
         }
     )
-
     sceneGroup:insert(menuBtn)
      
     -- Align the buttons
-    pauseBtn.x = settings.W-(settings.W/4)
+    pauseBtn.x = settings.W-settings.btnX
     pauseBtn.y = settings.btnY
-    menuBtn.x = settings.W/4
+    menuBtn.x = settings.btnX
     menuBtn.y = settings.btnY
     startBtn.x = pauseBtn.x
     startBtn.y = settings.btnY
-    
-    
-
-    menuBtn:addEventListener("touch", handleMenuBtnEvent)
 
     -- Check if matrix size has changed, load the matrix, draw the grid
     local loadedMatrix = loadJSONFile("stateMatrix.json")
@@ -437,58 +425,11 @@ function scene:create( event )
     lifeTimer = timer.performWithDelay(1000/iSpeed, timeBasedAnimate, -1)
 end
 
-
--- show()
-function scene:show( event )
-
-    local sceneGroup = self.view
-    local phase = event.phase
-
-    if ( phase == "will" ) then
-        -- Code here runs when the scene is still off screen (but is about to come on screen)
-
-    elseif ( phase == "did" ) then
-        -- Code here runs when the scene is entirely on screen
-
-    end
-end
-
-
--- hide()
-function scene:hide( event )
-
-    local sceneGroup = self.view
-    local phase = event.phase
-
-    if ( phase == "will" ) then
-        -- Code here runs when the scene is on screen (but is about to go off screen)
-
-    elseif ( phase == "did" ) then
-        -- Code here runs immediately after the scene goes entirely off screen
-
-    end
-end
-
-
--- destroy()
-function scene:destroy( event )
-
-    local sceneGroup = self.view
-    -- Code here runs prior to the removal of scene's view
-
-end
-
-
 -- -----------------------------------------------------------------------------------
 -- Scene event function listeners
 -- -----------------------------------------------------------------------------------
 scene:addEventListener( "create", scene )
-scene:addEventListener( "show", scene )
-scene:addEventListener( "hide", scene )
-scene:addEventListener( "destroy", scene )
 -- -----------------------------------------------------------------------------------
-
-
 
 return scene
 

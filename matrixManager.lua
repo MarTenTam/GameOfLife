@@ -8,6 +8,15 @@
 local json = require("json")
 local matrixManager = {}
 
+-- Function to create a save the state matrix as a json file.
+--  Inputs: 
+--          - binary matrix
+--          - accesses json.encode
+--
+--  Outputs: 
+--          - writes to system.ResourceDirectory "stateMatrix.json" file
+--          - shows native.showAlert in case of failure
+--  Author: Marten Tammetalu
 function matrixManager:saveState(stateMatrix)
 
     local stateMatrixString = json.encode(stateMatrix)
@@ -18,6 +27,7 @@ function matrixManager:saveState(stateMatrix)
 
     if not file then
         print( "File error: " .. errorString )
+        native.showAlert( "File error", errorString, { "OK" } ) 
     else
         local contents = stateMatrixString
         file:write(stateMatrixString)
@@ -28,6 +38,15 @@ function matrixManager:saveState(stateMatrix)
     end
 end
 
+-- Function to create a random binary matrix of alive or dead cells symbolised by 0 or 1 values.
+--  Inputs: 
+--          - integer value of the size of the matrix required
+--          - matrix with integers to add up and seed the random() function
+--
+--  Outputs: 
+--          - a binary matrix of random values of 0 or 1 as a 2d table
+--
+--  Author: Marten Tammetalu
 function matrixManager:makeRandomMatrix(size, seedMatrix)
 
     
@@ -61,6 +80,14 @@ function matrixManager:makeRandomMatrix(size, seedMatrix)
     return matrix
 end
 
+-- Function to create a zero matrix
+--  Inputs: 
+--          - the size of the matrix required as an integer
+--
+--  Outputs: 
+--          - a binary matrix of 0 values
+--
+--  Author: Marten Tammetalu
 function matrixManager:makeZeroMatrix(size)
 
     --Create a binary 2d matrix of dead cells
@@ -76,6 +103,15 @@ function matrixManager:makeZeroMatrix(size)
     return matrix
 end
 
+-- Function to calculate the matrix of updated cell states for the next frame.
+--  Inputs: 
+--          - a binary matrix of cell states in the form of a 2d table with integer values of 1 or 0 symbolizing the dead/alive states
+--
+--  Outputs: 
+--          - a binary matrix of cell states in the form of a 2d table with integer values of 1 or 0 with each cell state updated using
+--            updateCell()
+--
+--  Author: Marten Tammetalu
 function matrixManager:calculateCellStates(stateMatrix)
     local lastIndex = #stateMatrix
     local tempMatrix = {}

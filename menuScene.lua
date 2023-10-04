@@ -1,39 +1,41 @@
 local composer = require( "composer" )
 local widget = require("widget")
-
-
 local scene = composer.newScene()
-
+local settings = composer.getVariable("settings") -- Get the settings
 -- -----------------------------------------------------------------------------------
--- Code outside of the scene event functions below will only be executed ONCE unless
--- the scene is removed entirely (not recycled) via "composer.removeScene()"
--- -----------------------------------------------------------------------------------
-
-
--- -----------------------------------------------------------------------------------
--- Scene event functions
+-- This is the menu scene which runs when the menu is open
 -- -----------------------------------------------------------------------------------
 
-local settings = composer.getVariable("settings")
-
+-- The buttons and the backdrop rectangle
 local saveStateBtn
 local loadStateBtn
 local clearStateBtn
 local randomStateBtn
-local backDrop
 local menuDummyButton
+local backDrop
 
-local btnPadding
-local btnHeight
-local btnWidth
-local backDropX
-local backDropY
-local backDropW
-local backDropH
-local topBtnY
+-- Alignment for the backdrop and buttons based on previous scene
+local backDropX = settings.btnX+settings.W/7
+local backDropY = settings.btnY-settings.H*0.3-settings.W/16-3
+local backDropW = settings.W*0.62
+local backDropH = settings.H*0.6
+
+local btnQty = 4 -- How many buttons are there - to calculate heights for buttons
+local btnSpacing = 25 -- Space between buttons and button and backdrop edge
+local btnW = backDropW-2*btnSpacing
+local btnH = (backDropH - 5*btnSpacing) / btnQty
+local topBtnY = backDropY - backDropH/2 + btnH/2 + btnSpacing -- Y for the first button
+
+-- For storing what function the button serves
 local selectedFunction
 
--- Define the buttonHandler function
+-- Function to handle button events. It checks if the button carries a function and if yes, assigns that string to selectedFunction.
+--  Inputs: 
+--          - Triggering event
+--  Outputs: 
+--          - manipulates selectedFunction
+--
+--  Author: Marten Tammetalu
 local function buttonHandler(event)
     if (event.phase == "ended") then
         if event.target.selectedFunction then
@@ -43,7 +45,16 @@ local function buttonHandler(event)
     end
 end
 
-local function Btn(selectedFunction, label, x, y, w, h)
+-- Function to create menu buttons. It takes parameters and assigns them as properties of the created widget
+--  Inputs: 
+--          - selectedFunction(string) to associate a function with the button
+--          - label for the displayed button label
+--          - y position
+--  Outputs: 
+--          - manipulates selectedFunction
+--
+--  Author: Marten Tammetalu
+local function createMenuBtn(selectedFunction, label, y)
     -- Create a button
     local btn = widget.newButton(
         {
@@ -51,17 +62,17 @@ local function Btn(selectedFunction, label, x, y, w, h)
             onEvent = buttonHandler,
             emboss = false,
             shape = "roundedRect",
-            width = w,
-            height = h,
-            labelColor = { default={1,1,1} },
+            width = btnW,
+            height = btnH,
             fontSize = settings.fontSize,
             cornerRadius = 2,
-            fillColor = { default={0,0,0}, over={1,1,1} },
-            labelColor = { default=settings.primaryColor, over={0,0,0} },
-            strokeColor = { default=settings.primaryColor, over={0,0,0} },
+            fillColor = { default=settings.secondaryColor, over=settings.buttonPressedColor },
+            labelColor = { default=settings.primaryColor, over=settings.secondaryColor },
+            strokeColor = { default=settings.primaryColor, over=settings.secondaryColor },
             strokeWidth = 1,
-            x = x,
-            y = y
+            x = backDropX,
+            y = y,
+            selectedFunction = selectedFunction
         }
     )
 
@@ -70,7 +81,6 @@ local function Btn(selectedFunction, label, x, y, w, h)
     return btn
 end
 
-
 -- create()
 function scene:create( event )
 
@@ -78,87 +88,47 @@ function scene:create( event )
 
     -- Assign "self.view" to local variable "sceneGroup" for easy reference
     local sceneGroup = self.view
-
-    backDropX = settings.W/4+settings.W/7
-    btnPadding = 18
     
-    btnWidth = settings.W*0.6-btnPadding
-    backDropY = settings.btnY-settings.H*0.3-settings.W/16-3
-    backDropW = settings.W*0.62
-    backDropH = settings.H*0.6
-    btnHeight = (backDropH - 7*btnPadding) / 4
-    topBtnY = backDropY - backDropH/2 + btnHeight/2 + btnPadding*2
-
-    
+    -- Draw the backdrop, set its strokewidth and colors
     backDrop = display.newRect( sceneGroup, backDropX, backDropY, backDropW , backDropH )
     backDrop.strokeWidth = 1
-    backDrop:setFillColor( 0, 0, 0 )
-    backDrop:setStrokeColor( 1, 1, 1 )
+    backDrop:setFillColor( unpack(settings.secondaryColor) )
+    backDrop:setStrokeColor( unpack(settings.buttonPressedColor))
 
-    -- Create the menuDummyButton
+    -- Create a button widget with different color when menu open
     menuDummyButton = widget.newButton(
         {
             label = settings.menuText,
             onEvent = buttonHandler,
             fontSize = settings.fontSize,
-            labelColor = { default={1,1,1}, over=settings.primaryColor },
+            labelColor = { default=settings.buttonPressedColor, over=settings.secondaryColor },
             emboss = false,
             -- Properties for a rounded rectangle button
             shape = "roundedRect",
             width = settings.W/3,
             height = 5+settings.W/8,
             cornerRadius = 2,
-            left = settings.W/4-settings.W/6,
+            left = settings.btnX-settings.W/6,
             top = settings.btnY-settings.W/16-5,
-            fillColor = { default={0,0,0}, over={0,0,0} },
-            strokeColor = { default={1,1,1}, over=settings.primaryColor },
+            fillColor = { default=settings.secondaryColor, over=settings.buttonPressedColor },
+            strokeColor = { default=settings.buttonPressedColor, over=settings.buttonPressedColor },
             strokeWidth = 1
         }
-    )
-    menuDummyButton.selectedFunction = false
+    )    
 
-    
-
-    saveStateBtn = Btn("saveState", settings.saveStateText, backDropX, topBtnY, btnWidth, btnHeight)
-    --print(saveStateBtn.selectedFunction)
-    loadStateBtn = Btn("loadState", settings.loadStateText, backDropX, topBtnY+btnHeight+btnPadding, btnWidth, btnHeight)
-    clearStateBtn = Btn("clearState", settings.clearStateText, backDropX, topBtnY+2*(btnHeight+btnPadding), btnWidth, btnHeight)
-    randomStateBtn = Btn("randomState", settings.randomStateText, backDropX, topBtnY+3*(btnHeight+btnPadding), btnWidth, btnHeight)
+    --Draw the buttons according to the defined settings, manually adjusting the Y coordinate, then add to sceneGroup
+    saveStateBtn = createMenuBtn("saveState", settings.saveStateText, topBtnY)
+    loadStateBtn = createMenuBtn("loadState", settings.loadStateText, topBtnY+btnH+btnSpacing)
+    clearStateBtn = createMenuBtn("clearState", settings.clearStateText, topBtnY+2*(btnH+btnSpacing))
+    randomStateBtn = createMenuBtn("randomState", settings.randomStateText, topBtnY+3*(btnH+btnSpacing))
     sceneGroup:insert(menuDummyButton)
     sceneGroup:insert(backDrop)
     sceneGroup:insert(saveStateBtn)
     sceneGroup:insert(loadStateBtn)
     sceneGroup:insert(clearStateBtn)
     sceneGroup:insert(randomStateBtn)
-
-
-
-    
-
-
-    -- Code here runs when the scene is first created but has not yet appeared on screen
-
-   
+  
 end
-
-
--- show()
-function scene:show( event )
-
-    --composer.setVariable("selectedFunction", false)
-
-    local sceneGroup = self.view
-    local phase = event.phase
-
-    if ( phase == "will" ) then
-        -- Code here runs when the scene is still off screen (but is about to come on screen)
-
-    elseif ( phase == "did" ) then
-        -- Code here runs when the scene is entirely on screen
-
-    end
-end
-
 
 -- hide()
 function scene:hide( event )
@@ -167,29 +137,16 @@ function scene:hide( event )
     local parent = event.parent  -- Reference to the parent scene object
  
     if ( phase == "will" ) then
-
+        -- Call the function to handle the function that was picked in the other scene and call from matrixManager
         parent:returnFromMenu(selectedFunction)
-
     end
 end
-
-
--- destroy()
-function scene:destroy( event )
-
-    local sceneGroup = self.view
-    -- Code here runs prior to the removal of scene's view
-
-end
-
 
 -- -----------------------------------------------------------------------------------
 -- Scene event function listeners
 -- -----------------------------------------------------------------------------------
 scene:addEventListener( "create", scene )
-scene:addEventListener( "show", scene )
 scene:addEventListener( "hide", scene )
-scene:addEventListener( "destroy", scene )
 -- -----------------------------------------------------------------------------------
 
 return scene
